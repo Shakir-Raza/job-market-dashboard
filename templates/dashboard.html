@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Market Analytics Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">JM<span style="color:#e8e6df">D</span></a>
+  <div class="nav-links">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/jobs">All Jobs</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>Job Market Analytics</h1>
+    <p>Live data from UK & US job markets — updated on demand</p>
+  </div>
+
+  <div class="section-label">Overview</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="number">{{ total_jobs }}</div>
+      <div class="label">Jobs Tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">£{{ "{:,}".format(avg_salary) }}</div>
+      <div class="label">Avg Salary</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ skill_counts[0][0].title() if skill_counts else "N/A" }}</div>
+      <div class="label">Top Skill</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ location_counts[0][0].split(",")[0] if location_counts else "N/A" }}</div>
+      <div class="label">Top Location</div>
+    </div>
+  </div>
+
+  <div class="section-label">Charts</div>
+  <div class="charts-grid">
+    <div class="chart-box" id="chart-skills"></div>
+    <div class="chart-box" id="chart-location"></div>
+  </div>
+  <div class="chart-full" id="chart-salary"></div>
+
+  <div class="section-label">Recent Jobs</div>
+  <div class="jobs-grid">
+    {% for job in jobs %}
+    <div class="job-card">
+      <div class="job-card-header">
+        <div class="job-title">{{ job.title }}</div>
+        <div class="job-salary">
+          {% if job.salary_min %}£{{ job.salary_min|int }}{% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
+      <div class="job-skills">
+        {% for skill in (job.skills or []) %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+      </div>
+      <a href="{{ job.source_url }}" target="_blank" class="job-link">View Job →</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+
+<script>
+  Plotly.newPlot('chart-skills', {{ chart_skills | safe }}.data, {{ chart_skills | safe }}.layout, {responsive: true});
+  Plotly.newPlot('chart-location', {{ chart_location | safe }}.data, {{ chart_location | safe }}.layout, {responsive: true});
+  Plotly.newPlot('chart-salary', {{ chart_salary | safe }}.data, {{ chart_salary | safe }}.layout, {responsive: true});
+</script>
+</body>
+</html>

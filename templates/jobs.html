@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Jobs — Job Market Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">JM<span style="color:#e8e6df">D</span></a>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/jobs" class="active">All Jobs</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>All Jobs</h1>
+    <p>Browse and filter {{ jobs|length }} live job postings</p>
+  </div>
+
+  <form method="GET" action="/jobs">
+    <div class="filters-bar">
+      <input type="text" name="location" placeholder="Filter by location..." value="{{ location }}">
+      <input type="text" name="category" placeholder="Filter by category..." value="{{ category }}">
+      <button type="submit" class="btn btn-primary">Filter</button>
+      <a href="/jobs" class="btn btn-secondary">Clear</a>
+    </div>
+  </form>
+
+  <div class="job-count">Showing {{ jobs|length }} jobs</div>
+
+  <div class="jobs-grid">
+    {% for job in jobs %}
+    <div class="job-card">
+      <div class="job-card-header">
+        <div class="job-title">{{ job.title }}</div>
+        <div class="job-salary">
+          {% if job.salary_min %}£{{ job.salary_min|int }}{% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
+      <div class="job-skills">
+        {% for skill in (job.skills or []) %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+      </div>
+      <a href="{{ job.source_url }}" target="_blank" class="job-link">View Job →</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+
+</body>
+</html>
