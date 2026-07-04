@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salary Predictor — Job Market Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .skill-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #e8e6df;
+      transition: border-color 0.2s;
+    }
+    .skill-checkbox:hover { border-color: #c9a84c44; }
+    .skill-checkbox input { accent-color: #c9a84c; }
+    .prediction-box {
+      background: #1a1a1a;
+      border: 1px solid #c9a84c44;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      margin: 24px 0;
+    }
+    .prediction-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #c9a84c;
+    }
+    .prediction-label {
+      color: #888;
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+    .predict-btn {
+      background: #c9a84c;
+      color: #0d0d0d;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">JM<span style="color:#e8e6df">D</span></a>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/jobs">All Jobs</a>
+    <a href="/predict" class="active">Salary Predictor</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>Salary Predictor</h1>
+    <p>Select your skills and location to get a predicted salary based on real market data</p>
+  </div>
+
+  <form method="POST" action="/predict">
+    <div class="section-label">Your Skills</div>
+    <div class="skills-grid">
+      {% for skill in skills_list %}
+      <label class="skill-checkbox">
+        <input type="checkbox" name="skills" value="{{ skill }}"
+          {{ 'checked' if skill in selected_skills else '' }}>
+        {{ skill }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="section-label" style="margin-top: 20px;">Your Location</div>
+    <div class="filters-bar">
+      <input type="text" name="location" placeholder="e.g. London, New York, San Francisco..."
+        value="{{ location }}" style="min-width: 300px;">
+    </div>
+
+    <button type="submit" class="predict-btn">Predict My Salary →</button>
+  </form>
+
+  {% if prediction is not none %}
+  <div class="prediction-box">
+    <div class="prediction-number">£{{ "{:,}".format(prediction) }}</div>
+    <div class="prediction-label">Predicted annual salary based on your skills and location</div>
+    {% if location and ('new york' in location.lower() or 'san francisco' in location.lower() or 'chicago' in location.lower()) %}
+    <div class="prediction-label" style="margin-top:8px; color: #c9a84c;">
+      Note: US salaries shown in £ equivalent — actual USD values will be higher
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+
+</body>
+</html>

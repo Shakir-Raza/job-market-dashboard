@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import plotly
 import json
 import pandas as pd
+from analytics.ml_model import train_model, predict_salary
 
 load_dotenv()
 
@@ -22,6 +23,8 @@ def dashboard():
     # fetch all jobs
     result = supabase.table("jobs").select("*").execute()
     jobs = result.data
+    # train ML model
+    model, mlb, avg = train_model(jobs)
 
     # total count
     total_jobs = len(jobs)
@@ -121,6 +124,32 @@ def jobs_page():
     jobs = result.data
 
     return render_template("jobs.html", jobs=jobs, category=category, location=location)
+
+
+@app.route("/predict", methods=["GET", "POST"])
+def predict():
+    prediction = None
+    selected_skills = []
+    location = ""
+
+    result = supabase.table("jobs").select("*").execute()
+    jobs = result.data
+    model, mlb, avg_sal = train_model(jobs)
+
+    if request.method == "POST":
+        selected_skills = request.form.getlist("skills")
+        location = request.form.get("location", "")
+        if model and selected_skills:
+            predicted = predict_salary(model, mlb, selected_skills, location)
+            prediction = predicted
+
+    from scraper.clean_data import SKILLS_LIST
+    return render_template("predict.html",
+        skills_list=SKILLS_LIST,
+        prediction=prediction,
+        selected_skills=selected_skills,
+        location=location
+    )
 
 
 if __name__ == "__main__":
