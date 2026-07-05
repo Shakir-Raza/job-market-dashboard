@@ -13,10 +13,16 @@ load_dotenv()
 
 app = Flask(__name__)
 
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+sb_url = os.getenv("SUPABASE_URL", "")
+sb_key = os.getenv("SUPABASE_KEY", "")
+
+if not sb_url or not sb_key:
+    raise ValueError(f"Missing Supabase credentials. URL={bool(sb_url)} KEY={bool(sb_key)}")
+
+supabase = create_client(sb_url, sb_key)
+    
+    
+
 
 @app.route("/")
 def dashboard():
