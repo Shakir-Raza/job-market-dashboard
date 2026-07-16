@@ -76,6 +76,11 @@
 <footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
 
 <script>
+  var config = {
+    displayModeBar: false,
+    scrollZoom: false,
+    doubleClick: false,
+  }
   Plotly.newPlot('chart-skills', {{ chart_skills | safe }}.data, {{ chart_skills | safe }}.layout, {responsive: true});
   Plotly.newPlot('chart-location', {{ chart_location | safe }}.data, {{ chart_location | safe }}.layout, {responsive: true});
   Plotly.newPlot('chart-salary', {{ chart_salary | safe }}.data, {{ chart_salary | safe }}.layout, {responsive: true});

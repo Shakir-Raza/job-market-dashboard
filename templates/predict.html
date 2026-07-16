@@ -76,6 +76,7 @@
   </div>
 
   <form method="POST" action="/predict">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="section-label">Your Skills</div>
     <div class="skills-grid">
       {% for skill in skills_list %}
