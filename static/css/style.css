@@ -167,3 +167,22 @@ footer {
   nav { padding: 14px 20px; }
   .container { padding: 24px 16px; }
 }
+
+.quick-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.qbtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #888;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.qbtn:hover { border-color: #c9a84c44; color: #e8e6df; }
+.qbtn.active { background: #c9a84c22; border-color: #c9a84c; color: #c9a84c; }

@@ -51,6 +51,27 @@
   </div>
   <div class="chart-full" id="chart-salary"></div>
 
+  <div class="section-label" style="margin-top: 32px;">Jobs by Region</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="number">{{ pakistan_jobs }}</div>
+      <div class="label">🇵🇰 Pakistan</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ india_jobs }}</div>
+      <div class="label">🇮🇳 India</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ bangladesh_jobs }}</div>
+      <div class="label">🇧🇩 Bangladesh</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ remote_jobs }}</div>
+      <div class="label">🌍 Remote Worldwide</div>
+    </div>
+  </div>
+  
+
   <div class="section-label">Recent Jobs</div>
   <div class="jobs-grid">
     {% for job in jobs %}

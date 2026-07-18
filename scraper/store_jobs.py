@@ -12,6 +12,12 @@ supabase = create_client(
     os.getenv("SUPABASE_SERVICE_KEY")
 )
 
+def delete_old_jobs(days=30):
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    supabase.table("jobs").delete().lt("scraped_at", cutoff).execute()
+    print(f"Deleted jobs older than {days} days (before {cutoff[:10]})")
+
 def store_jobs(what, where, country="pk", page=1):
     raw = fetch_jobs(what=what, where=where, country=country, page=page)
     df  = clean_jobs(raw)
@@ -119,6 +125,7 @@ def store_remotive_jobs(category="software-dev"):
 
 
 if __name__ == "__main__":
+    delete_old_jobs(days=30)
     # Himalayas — Pakistan specific
     store_himalayas_jobs("python developer", country="Pakistan")
     store_himalayas_jobs("data scientist", country="Pakistan")

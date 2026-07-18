@@ -49,6 +49,13 @@ def dashboard():
 
     locations = [j["location"] for j in jobs if j.get("location")]
     location_counts = Counter(locations).most_common(5)
+    
+    # country breakdown
+    
+    pakistan_jobs = len([j for j in jobs if "Pakistan" in (j.get("location") or "")])
+    india_jobs = len([j for j in jobs if "India" in (j.get("location") or "")])
+    bangladesh_jobs = len([j for j in jobs if "Bangladesh" in (j.get("location") or "")])
+    remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
 
     skills_df_data = {"Skill": [s[0] for s in skill_counts], "Jobs": [s[1] for s in skill_counts]}
     fig_skills = px.bar(skills_df_data, x="Jobs", y="Skill", orientation="h",
@@ -71,29 +78,53 @@ def dashboard():
             val = j.get("salary_min")
             if val is not None:
                 f = float(val)
-                if f > 1000:
+                if f > 1000:     
                     salary_data.append(f)
-        except:
+        except:            
             pass
 
-    fig_salary = go.Figure(data=[go.Histogram(
-        x=salary_data,
-        nbinsx=20,
-        marker_color="#7F77DD"
+    if salary_data:
+        fig_salary = go.Figure(data=[go.Histogram(     
+            x=salary_data,
+            nbinsx=20,
+            marker_color="#7F77DD"
     )])
-    fig_salary.update_layout(
-        title="Salary Distribution",
-        paper_bgcolor="#0d0d0d",
-        plot_bgcolor="#1a1a1a",
-        font_color="#e8e6df",
-        title_font_color="#7F77DD",
-        showlegend=False,
-        xaxis_title="Salary (£/year)",
-        yaxis_title="Number of Jobs",
+        fig_salary.update_layout(
+            title=f"Salary Distribution ({len(salary_data)} jobs with salary data)",
+            paper_bgcolor="#0d0d0d",
+            plot_bgcolor="#1a1a1a",
+            font_color="#e8e6df",
+            title_font_color="#7F77DD",
+            showlegend=False,
+            xaxis_title="Salary (£/year)",
+            yaxis_title="Number of Jobs",
+    )
+    else:
+        
+        fig_salary = go.Figure()
+        
+        fig_salary.update_layout(
+            
+            title="Salary Distribution — No salary data available for current jobs",
+            paper_bgcolor="#0d0d0d",
+            plot_bgcolor="#1a1a1a",
+            font_color="#e8e6df",
+            title_font_color="#7F77DD",
+            annotations=[dict(
+                
+                text="Most remote jobs don't list salary publicly",
+                x=0.5, y=0.5,
+                xref="paper", yref="paper",
+                showarrow=False,
+                font=dict(color="#555", size=14)
+        )]
     )
     chart_salary = json.dumps(fig_salary, cls=plotly.utils.PlotlyJSONEncoder)
-
     return render_template("dashboard.html",
+        pakistan_jobs=pakistan_jobs,
+        india_jobs=india_jobs,
+        bangladesh_jobs=bangladesh_jobs,
+        remote_jobs=remote_jobs,                   
         total_jobs=total_jobs,
         skill_counts=skill_counts,
         avg_salary=avg_salary,
