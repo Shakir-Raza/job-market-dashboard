@@ -52,9 +52,9 @@ Python, Flask, Supabase (PostgreSQL), scikit-learn, Pandas, Plotly, Adzuna API, 
 
 ## Screenshots
 
-![Dashboard](1.png)
-![Job Listings](2.png)
-![Prediction ](3.png)
+![Dashboard](screenshots/1.png)
+![Job Listings](screenshots/2.png)
+![Prediction Form](screenshots/3.png)
 
 ## Installation
 
@@ -88,8 +88,3 @@ Visit `http://localhost:5000` to view the dashboard.
 - Add caching for the analytics queries to reduce redundant computation on each dashboard load
 - Add tests for the cleaning and dedup logic
 
-## Lessons Learned
-
-*(Fill this in yourself — a sentence or two on a real tradeoff you made, like the RLS decision
-or handling duplicate postings across scheduled scraper runs. This section is what makes a
-README sound like an engineer wrote it, not a template.)*
