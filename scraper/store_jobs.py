@@ -43,26 +43,109 @@ def store_jobs(what, where, country="pk", page=1):
 
     print(f"Done — {inserted} inserted, {skipped} skipped (duplicates)")
 
+from fetch_himalayas_jobs import fetch_himalayas_jobs
+from clean_himalayas_jobs import clean_himalayas_jobs
+from fetch_remote_jobs import fetch_remote_jobs
+from clean_remote_jobs import clean_remote_jobs
+
+def store_himalayas_jobs(keyword, country=None):
+    print(f"Fetching Himalayas jobs for '{keyword}'" + (f" in {country}" if country else ""))
+    raw = fetch_himalayas_jobs(keyword=keyword, country=country, limit=20)
+    if not raw:
+        return
+    df = clean_himalayas_jobs(raw)
+
+    inserted = 0
+    skipped  = 0
+
+    for _, row in df.iterrows():
+        if not row["source_url"]:
+            skipped += 1
+            continue
+        existing = supabase.table("jobs").select("id").eq("source_url", row["source_url"]).execute()
+        if existing.data:
+            skipped += 1
+            continue
+        supabase.table("jobs").insert({
+            "title":       row["title"],
+            "company":     row["company"],
+            "location":    row["location"],
+            "salary_min":  row["salary_min"],
+            "salary_max":  row["salary_max"],
+            "skills":      row["skills"],
+            "category":    row["category"],
+            "source_url":  row["source_url"],
+            "posted_date": row["posted_date"],
+            "description": row["description"],
+        }).execute()
+        inserted += 1
+
+    print(f"Done — {inserted} inserted, {skipped} skipped")
+
+
+def store_remotive_jobs(category="software-dev"):
+    print(f"Fetching Remotive jobs for '{category}'...")
+    raw = fetch_remote_jobs(category=category)
+    if not raw:
+        return
+    df = clean_remote_jobs(raw)
+
+    inserted = 0
+    skipped  = 0
+
+    for _, row in df.iterrows():
+        if not row["source_url"]:
+            skipped += 1
+            continue
+        existing = supabase.table("jobs").select("id").eq("source_url", row["source_url"]).execute()
+        if existing.data:
+            skipped += 1
+            continue
+        supabase.table("jobs").insert({
+            "title":       row["title"],
+            "company":     row["company"],
+            "location":    row["location"],
+            "salary_min":  None,
+            "salary_max":  None,
+            "skills":      row["skills"],
+            "category":    row["category"],
+            "source_url":  row["source_url"],
+            "posted_date": row["posted_date"],
+            "description": row["description"],
+        }).execute()
+        inserted += 1
+
+    print(f"Done — {inserted} inserted, {skipped} skipped")
+
+
 if __name__ == "__main__":
-    # UK jobs
-    store_jobs("python developer", "london", country="gb")
-    store_jobs("data scientist", "london", country="gb")
-    store_jobs("machine learning engineer", "london", country="gb")
-    store_jobs("flask developer", "london", country="gb")
-    store_jobs("data engineer", "london", country="gb")
-    store_jobs("backend developer", "manchester", country="gb")
-    store_jobs("ai engineer", "london", country="gb")
-    # US jobs
-    store_jobs("python developer", "new york", country="us")
-    store_jobs("data scientist", "san francisco", country="us")
-    store_jobs("machine learning engineer", "new york", country="us")
-    store_jobs("software engineer", "chicago", country="us")
-    store_jobs("data engineer", "seattle", country="us")
-    store_jobs("backend developer", "austin", country="us")
-    # Europe
-    store_jobs("python developer", "berlin", country="de")
-    store_jobs("data scientist", "berlin", country="de")
-    store_jobs("software engineer", "amsterdam", country="nl")
-    store_jobs("python developer", "amsterdam", country="nl")
-    store_jobs("machine learning", "paris", country="fr")
-    store_jobs("data engineer", "paris", country="fr")
+    # Himalayas — Pakistan specific
+    store_himalayas_jobs("python developer", country="Pakistan")
+    store_himalayas_jobs("data scientist", country="Pakistan")
+    store_himalayas_jobs("software engineer", country="Pakistan")
+    store_himalayas_jobs("machine learning", country="Pakistan")
+    store_himalayas_jobs("backend developer", country="Pakistan")
+
+    # Himalayas — India
+    store_himalayas_jobs("python developer", country="India")
+    store_himalayas_jobs("data scientist", country="India")
+    store_himalayas_jobs("software engineer", country="India")
+    store_himalayas_jobs("machine learning", country="India")
+
+    # Himalayas — Bangladesh
+    store_himalayas_jobs("python developer", country="Bangladesh")
+    store_himalayas_jobs("software engineer", country="Bangladesh")
+
+    # Himalayas — Worldwide remote
+    store_himalayas_jobs("python developer")
+    store_himalayas_jobs("data scientist")
+    store_himalayas_jobs("machine learning engineer")
+    store_himalayas_jobs("flask developer")
+    store_himalayas_jobs("backend developer")
+    store_himalayas_jobs("data engineer")
+
+    # Remotive — worldwide remote tech
+    store_remotive_jobs("software-dev")
+    store_remotive_jobs("data")
+    store_remotive_jobs("devops-sysadmin")
+    store_remotive_jobs("backend")

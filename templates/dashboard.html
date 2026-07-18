@@ -79,11 +79,21 @@
   var config = {
     displayModeBar: false,
     scrollZoom: false,
-    doubleClick: false,
+    doubleClick: 'reset',
+    dragmode: false,
   }
-  Plotly.newPlot('chart-skills', {{ chart_skills | safe }}.data, {{ chart_skills | safe }}.layout, {responsive: true});
-  Plotly.newPlot('chart-location', {{ chart_location | safe }}.data, {{ chart_location | safe }}.layout, {responsive: true});
-  Plotly.newPlot('chart-salary', {{ chart_salary | safe }}.data, {{ chart_salary | safe }}.layout, {responsive: true});
+
+  var chartSkills = {{ chart_skills | safe }};
+  var chartLocation = {{ chart_location | safe }};
+  var chartSalary = {{ chart_salary | safe }};
+
+  chartSkills.layout.dragmode = false;
+  chartLocation.layout.dragmode = false;
+  chartSalary.layout.dragmode = false;
+
+  Plotly.newPlot('chart-skills', chartSkills.data, chartSkills.layout, config);
+  Plotly.newPlot('chart-location', chartLocation.data, chartLocation.layout, config);
+  Plotly.newPlot('chart-salary', chartSalary.data, chartSalary.layout, config);
 </script>
 </body>
 </html>
