@@ -44,6 +44,12 @@ supabase = create_client(
 def dashboard():
     result = supabase.table("jobs").select("*").execute()
     jobs = result.data
+    # last updated
+    last_updated = None
+    if jobs:
+        dates = [j.get("scraped_at") for j in jobs if j.get("scraped_at")]
+        if dates:
+            last_updated = max(dates)[:10]  # just the date part YYYY-MM-DD
     model, mlb, avg = train_model(jobs)
     total_jobs = len(jobs)
 
@@ -141,8 +147,6 @@ def dashboard():
     )
     chart_salary = json.dumps(fig_salary, cls=plotly.utils.PlotlyJSONEncoder)
     return render_template("dashboard.html",
-        category_counts=category_counts,
-        chart_category=chart_category,                   
         pakistan_jobs=pakistan_jobs,
         india_jobs=india_jobs,
         bangladesh_jobs=bangladesh_jobs,
@@ -155,6 +159,9 @@ def dashboard():
         chart_skills=chart_skills,
         chart_location=chart_location,
         chart_salary=chart_salary,
+        category_counts=category_counts,
+        chart_category=chart_category,                   
+        last_updated=last_updated,
     )
 
 @app.route("/jobs")
