@@ -271,7 +271,7 @@ def jobs_page():
         total_jobs=total_jobs,
     )
 
-@app.route("/jobs/<job_id>")
+@app.route("/job/<job_id>")
 def job_detail(job_id):
     result = supabase.table("jobs").select("*").eq("id", job_id).execute()
     if not result.data:
