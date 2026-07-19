@@ -48,6 +48,7 @@
   <div class="charts-grid">
     <div class="chart-box" id="chart-skills"></div>
     <div class="chart-box" id="chart-location"></div>
+    <div class="chart-full" id="chart-category" style="margin-bottom: 16px;"></div>
   </div>
   <div class="chart-full" id="chart-salary"></div>
 
@@ -111,6 +112,10 @@
   chartSkills.layout.dragmode = false;
   chartLocation.layout.dragmode = false;
   chartSalary.layout.dragmode = false;
+
+  var chartCategory = {{ chart_category | safe }};
+  chartCategory.layout.dragmode = false;
+  Plotly.newPlot('chart-category', chartCategory.data, chartCategory.layout, config);
 
   Plotly.newPlot('chart-skills', chartSkills.data, chartSkills.layout, config);
   Plotly.newPlot('chart-location', chartLocation.data, chartLocation.layout, config);

@@ -49,6 +49,8 @@ def dashboard():
 
     locations = [j["location"] for j in jobs if j.get("location")]
     location_counts = Counter(locations).most_common(5)
+    # category breakdown
+    category_counts = Counter([j["category"] for j in jobs if j.get("category")]).most_common(8)
     
     # country breakdown
     
@@ -56,6 +58,16 @@ def dashboard():
     india_jobs = len([j for j in jobs if "India" in (j.get("location") or "")])
     bangladesh_jobs = len([j for j in jobs if "Bangladesh" in (j.get("location") or "")])
     remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
+    
+    # Category chart
+    cat_data = {"Category": [c[0] for c in category_counts], "Jobs": [c[1] for c in category_counts]}
+    fig_cat = px.bar(cat_data, x="Category", y="Jobs",                
+        title="Jobs by Category", color_discrete_sequence=["#D85A30"])
+    fig_cat.update_layout(
+        paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+        font_color="#e8e6df", title_font_color="#D85A30"
+)
+    chart_category = json.dumps(fig_cat, cls=plotly.utils.PlotlyJSONEncoder)
 
     skills_df_data = {"Skill": [s[0] for s in skill_counts], "Jobs": [s[1] for s in skill_counts]}
     fig_skills = px.bar(skills_df_data, x="Jobs", y="Skill", orientation="h",
@@ -121,6 +133,8 @@ def dashboard():
     )
     chart_salary = json.dumps(fig_salary, cls=plotly.utils.PlotlyJSONEncoder)
     return render_template("dashboard.html",
+        category_counts=category_counts,
+        chart_category=chart_category,                   
         pakistan_jobs=pakistan_jobs,
         india_jobs=india_jobs,
         bangladesh_jobs=bangladesh_jobs,
