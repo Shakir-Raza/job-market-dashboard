@@ -218,4 +218,8 @@ footer {
   font-weight: 600;
   margin-left: 4px;
   vertical-align: middle;
+  
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
