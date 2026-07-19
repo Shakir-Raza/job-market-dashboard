@@ -141,6 +141,8 @@ def jobs_page():
     category = request.args.get("category", "")[:100]
     location = request.args.get("location", "")[:100]
     search   = request.args.get("search", "")[:100]
+    page     = int(request.args.get("page", 1))
+    per_page = 20
 
     query = supabase.table("jobs").select("*").order("scraped_at", desc=True)
 
@@ -151,12 +153,30 @@ def jobs_page():
     
     if search:
         query = query.ilike("title", f"%{search}%")
+    
+    total_jobs = len(all_jobs)
+    total_pages = (total_jobs + per_page - 1) // per_page
+    start = (page - 1) * per_page
+    end = start + per_page
+    jobs = all_jobs[start:end]
 
+    return render_template("jobs.html",
+        jobs=jobs,
+        category=category,
+        location=location,
+        search=search,
+        page=page,
+        total_pages=total_pages,
+        total_jobs=total_jobs,
+    )
 
-    result = query.execute()
-    jobs = result.data
-
-    return render_template("jobs.html", jobs=jobs, category=category, location=location, search=search)
+@app.route("/jobs/<job_id>")
+def job_detail(job_id):
+    result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    if not result.data:
+        return render_template("404.html"), 404
+    job = result.data[0]
+    return render_template("job_detail.html", job=job)
 
 @app.route("/predict", methods=["GET", "POST"])
 @limiter.limit("30 per minute")

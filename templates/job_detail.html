@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ job.title }} — Job Market Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">JM<span style="color:#e8e6df">D</span></a>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/jobs" class="active">All Jobs</a>
+    <a href="/predict">Salary Predictor</a>
+  </div>
+</nav>
+
+<div class="container">
+  <a href="/jobs" class="job-link" style="display:inline-block; margin-bottom:20px;">← Back to Jobs</a>
+
+  <div class="job-card" style="padding: 28px;">
+
+    <div class="job-card-header" style="margin-bottom: 12px;">
+      <div class="job-title" style="font-size: 1.3rem;">{{ job.title }}</div>
+      <div class="job-salary" style="font-size: 1rem;">
+        {% if job.salary_min %}
+          £{{ job.salary_min|int }} - £{{ job.salary_max|int if job.salary_max else job.salary_min|int }}
+        {% else %}
+          Salary not listed
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="job-meta" style="font-size: 0.9rem; margin-bottom: 8px;">
+      <strong style="color:#e8e6df;">{{ job.company }}</strong> — {{ job.location }}
+    </div>
+
+    <div class="job-meta" style="margin-bottom: 16px;">
+      Category: {{ job.category or "Not specified" }} &nbsp;|&nbsp;
+      Posted: {{ job.posted_date[:10] if job.posted_date else "Unknown" }}
+    </div>
+
+    <div class="job-skills" style="margin-bottom: 20px;">
+      {% for skill in (job.skills or []) %}
+      <span class="skill-tag">{{ skill }}</span>
+      {% endfor %}
+    </div>
+
+    {% if job.description %}
+    <div class="section-label">Description</div>
+    <div style="color: #aaa; font-size: 0.88rem; line-height: 1.7; margin: 12px 0 24px 0; white-space: pre-wrap;">
+      {{ job.description }}
+    </div>
+    {% endif %}
+
+    <a href="{{ job.source_url }}" target="_blank"
+       style="display: inline-block; background: #c9a84c; color: #0d0d0d; padding: 12px 28px;
+              border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.9rem;">
+      Apply for this Job →
+    </a>
+  </div>
+</div>
+
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+
+</body>
+</html>

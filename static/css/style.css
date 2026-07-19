@@ -186,3 +186,24 @@ footer {
 }
 .qbtn:hover { border-color: #c9a84c44; color: #e8e6df; }
 .qbtn.active { background: #c9a84c22; border-color: #c9a84c; color: #c9a84c; }
+
+.pagination {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 32px 0;
+  flex-wrap: wrap;
+}
+.page-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #888;
+  text-decoration: none;
+  font-size: 0.82rem;
+  transition: all 0.2s;
+}
+.page-btn:hover { border-color: #c9a84c44; color: #e8e6df; }
+.page-btn.active { background: #c9a84c22; border-color: #c9a84c; color: #c9a84c; font-weight: bold; }
+.page-btn.dots { cursor: default; border: none; background: none; }
