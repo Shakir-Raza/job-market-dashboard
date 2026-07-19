@@ -66,6 +66,36 @@ def dashboard():
     # category breakdown
     category_counts = Counter([j["category"] for j in jobs if j.get("category")]).most_common(8)
     
+    # avg salary by skill
+    
+    skill_salary = {}
+    skill_salary_count = {}
+    for job in jobs:
+        sal = job.get("salary_min")
+        if not sal:
+            continue
+        try:
+            sal = float(sal)
+            if sal < 1000:
+                continue
+        except:
+            continue
+        for skill in (job.get("skills") or []):
+            if skill not in skill_salary:
+                skill_salary[skill] = 0
+                skill_salary_count[skill] = 0
+                
+            skill_salary[skill] += sal
+            skill_salary_count[skill] += 1
+
+# only include skills with at least 3 salary data points
+    skill_avg_salary = {
+        skill: round(skill_salary[skill] / skill_salary_count[skill])
+        for skill in skill_salary
+        if skill_salary_count[skill] >= 3
+}
+    skill_avg_salary = dict(sorted(skill_avg_salary.items(), key=lambda x: x[1], reverse=True)[:10])
+    
     # country breakdown
     
     pakistan_jobs = len([j for j in jobs if "Pakistan" in (j.get("location") or "")])
@@ -146,6 +176,44 @@ def dashboard():
         )]
     )
     chart_salary = json.dumps(fig_salary, cls=plotly.utils.PlotlyJSONEncoder)
+    
+        # Avg salary by skill chart
+    
+    if skill_avg_salary:
+        fig_skill_sal = px.bar(
+            
+            x=list(skill_avg_salary.values()),
+            y=list(skill_avg_salary.keys()),
+            orientation="h",
+            title="Average Salary by Skill (£/year)",
+            color_discrete_sequence=["#1D9E75"]
+    )
+        
+        fig_skill_sal.update_layout(
+            
+            paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+            font_color="#e8e6df", title_font_color="#1D9E75",
+            yaxis=dict(autorange="reversed"),
+            xaxis_title="Avg Salary (£/year)",
+            yaxis_title="Skill",
+            showlegend=False,
+    )
+    else:
+        
+        fig_skill_sal = go.Figure()
+        fig_skill_sal.update_layout(
+            
+            title="Average Salary by Skill — Not enough salary data yet",
+            paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+            font_color="#e8e6df", title_font_color="#1D9E75",
+            annotations=[dict(
+                text="Run the scraper with more salary-inclusive job sources",
+                x=0.5, y=0.5, xref="paper", yref="paper",
+                showarrow=False, font=dict(color="#555", size=13)
+        )]
+    )
+    chart_skill_salary = json.dumps(fig_skill_sal, cls=plotly.utils.PlotlyJSONEncoder)
+    
     return render_template("dashboard.html",
         pakistan_jobs=pakistan_jobs,
         india_jobs=india_jobs,
@@ -162,8 +230,12 @@ def dashboard():
         category_counts=category_counts,
         chart_category=chart_category,                   
         last_updated=last_updated,
+        chart_skill_salary=chart_skill_salary,
     )
+    
 
+    
+    
 @app.route("/jobs")
 def jobs_page():
     # sanitize inputs
