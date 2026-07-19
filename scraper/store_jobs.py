@@ -150,6 +150,24 @@ if __name__ == "__main__":
     store_himalayas_jobs("flask developer")
     store_himalayas_jobs("backend developer")
     store_himalayas_jobs("data engineer")
+    
+    # Himalayas — UK
+    store_himalayas_jobs("python developer", country="United Kingdom")
+    store_himalayas_jobs("data scientist", country="United Kingdom")
+    store_himalayas_jobs("software engineer", country="United Kingdom")
+
+# Himalayas — Canada
+    store_himalayas_jobs("python developer", country="Canada")
+    store_himalayas_jobs("data scientist", country="Canada")
+    store_himalayas_jobs("software engineer", country="Canada")
+
+# Himalayas — Australia
+    store_himalayas_jobs("python developer", country="Australia")
+    store_himalayas_jobs("software engineer", country="Australia")
+
+# Himalayas — Germany
+    store_himalayas_jobs("python developer", country="Germany")
+    store_himalayas_jobs("software engineer", country="Germany")
 
     # Remotive — worldwide remote tech
     store_remotive_jobs("software-dev")
