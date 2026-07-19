@@ -238,7 +238,6 @@ def dashboard():
     
 @app.route("/jobs")
 def jobs_page():
-    # sanitize inputs
     category = request.args.get("category", "")[:100]
     location = request.args.get("location", "")[:100]
     search   = request.args.get("search", "")[:100]
@@ -251,10 +250,12 @@ def jobs_page():
         query = query.ilike("category", f"%{category}%")
     if location:
         query = query.ilike("location", f"%{location}%")
-    
     if search:
         query = query.ilike("title", f"%{search}%")
-    
+
+    result = query.execute()
+    all_jobs = result.data
+
     total_jobs = len(all_jobs)
     total_pages = (total_jobs + per_page - 1) // per_page
     start = (page - 1) * per_page
