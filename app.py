@@ -20,6 +20,14 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 csrf = CSRFProtect(app)
+@app.context_processor
+def inject_job_count():
+    try:
+        result = supabase.table("jobs").select("id", count="exact").execute()
+        count = len(result.data)
+    except:
+        count = 0
+    return dict(nav_job_count=count)
 
 limiter = Limiter(
     get_remote_address,

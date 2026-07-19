@@ -207,3 +207,15 @@ footer {
 .page-btn:hover { border-color: #c9a84c44; color: #e8e6df; }
 .page-btn.active { background: #c9a84c22; border-color: #c9a84c; color: #c9a84c; font-weight: bold; }
 .page-btn.dots { cursor: default; border: none; background: none; }
+
+.nav-badge {
+  background: #c9a84c22;
+  border: 1px solid #c9a84c44;
+  color: #c9a84c;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 4px;
+  vertical-align: middle;
+}
