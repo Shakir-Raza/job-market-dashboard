@@ -140,6 +140,7 @@ def jobs_page():
     # sanitize inputs
     category = request.args.get("category", "")[:100]
     location = request.args.get("location", "")[:100]
+    search   = request.args.get("search", "")[:100]
 
     query = supabase.table("jobs").select("*").order("scraped_at", desc=True)
 
@@ -147,11 +148,15 @@ def jobs_page():
         query = query.ilike("category", f"%{category}%")
     if location:
         query = query.ilike("location", f"%{location}%")
+    
+    if search:
+        query = query.ilike("title", f"%{search}%")
+
 
     result = query.execute()
     jobs = result.data
 
-    return render_template("jobs.html", jobs=jobs, category=category, location=location)
+    return render_template("jobs.html", jobs=jobs, category=category, location=location, search=search)
 
 @app.route("/predict", methods=["GET", "POST"])
 @limiter.limit("30 per minute")

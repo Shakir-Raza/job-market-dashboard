@@ -25,6 +25,7 @@
 
   <form method="GET" action="/jobs">
     <div class="filters-bar">
+      <input type="text" name="search" placeholder="Search job titles..." value="{{ search }}" style="min-width: 200px;">
       <input type="text" name="location" placeholder="Filter by location..." value="{{ location }}">
       <input type="text" name="category" placeholder="Filter by category..." value="{{ category }}">
       <button type="submit" class="btn btn-primary">Filter</button>
