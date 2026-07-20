@@ -56,6 +56,7 @@
   <div class="chart-full" id="chart-salary"></div>
   <div class="chart-full" id="chart-category" style="margin-bottom: 16px;"></div>
   <div class="chart-full" id="chart-skill-salary" style="margin-bottom: 16px;"></div>
+  <div class="chart-full" id="chart-remote" style="margin-bottom: 16px;"></div>
 
   <div class="section-label" style="margin-top: 32px;">Jobs by Region</div>
   <div class="stats-grid">
@@ -128,22 +129,23 @@
   var chartSkills = {{ chart_skills | safe }};
   var chartLocation = {{ chart_location | safe }};
   var chartSalary = {{ chart_salary | safe }};
+  var chartCategory = {{ chart_category | safe }};
+  var chartSkillSalary = {{ chart_skill_salary | safe }};
+  var chartRemote = {{ chart_remote | safe }};
 
   chartSkills.layout.dragmode = false;
   chartLocation.layout.dragmode = false;
   chartSalary.layout.dragmode = false;
-
-  var chartCategory = {{ chart_category | safe }};
   chartCategory.layout.dragmode = false;
-  Plotly.newPlot('chart-category', chartCategory.data, chartCategory.layout, config);
-
-  var chartSkillSalary = {{ chart_skill_salary | safe }};
-chartSkillSalary.layout.dragmode = false;
-Plotly.newPlot('chart-skill-salary', chartSkillSalary.data, chartSkillSalary.layout, config);
+  chartSkillSalary.layout.dragmode = false;
+  chartRemote.layout.dragmode = false;
 
   Plotly.newPlot('chart-skills', chartSkills.data, chartSkills.layout, config);
   Plotly.newPlot('chart-location', chartLocation.data, chartLocation.layout, config);
   Plotly.newPlot('chart-salary', chartSalary.data, chartSalary.layout, config);
+  Plotly.newPlot('chart-category', chartCategory.data, chartCategory.layout, config);
+  Plotly.newPlot('chart-skill-salary', chartSkillSalary.data, chartSkillSalary.layout, config);
+  Plotly.newPlot('chart-remote', chartRemote.data, chartRemote.layout, config);
 </script>
 </body>
 </html>

@@ -101,11 +101,12 @@ def dashboard():
     pakistan_jobs = len([j for j in jobs if "Pakistan" in (j.get("location") or "")])
     india_jobs = len([j for j in jobs if "India" in (j.get("location") or "")])
     bangladesh_jobs = len([j for j in jobs if "Bangladesh" in (j.get("location") or "")])
-    remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
     uk_jobs = len([j for j in jobs if "United Kingdom" in (j.get("location") or "")])
     canada_jobs = len([j for j in jobs if "Canada" in (j.get("location") or "")])
     australia_jobs = len([j for j in jobs if "Australia" in (j.get("location") or "")])
     germany_jobs = len([j for j in jobs if "Germany" in (j.get("location") or "")])
+    remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
+    onsite_jobs = len([j for j in jobs if "Remote" not in (j.get("location") or "")])
     
     # Category chart
     cat_data = {"Category": [c[0] for c in category_counts], "Jobs": [c[1] for c in category_counts]}
@@ -218,6 +219,24 @@ def dashboard():
     )
     chart_skill_salary = json.dumps(fig_skill_sal, cls=plotly.utils.PlotlyJSONEncoder)
     
+    # Remote vs Onsite pie chart
+    fig_remote = px.pie(
+    values=[remote_jobs, onsite_jobs],
+    names=["Remote", "Onsite/Hybrid"],
+    title="Remote vs Onsite Jobs",
+    color_discrete_sequence=["#c9a84c", "#1D9E75"]
+)
+    fig_remote.update_layout(
+    paper_bgcolor="#0d0d0d",
+    plot_bgcolor="#1a1a1a",
+    font_color="#e8e6df",
+    title_font_color="#c9a84c",
+    showlegend=True,
+    )
+    chart_remote = json.dumps(fig_remote, cls=plotly.utils.PlotlyJSONEncoder)
+    
+    
+    
     return render_template("dashboard.html",
         pakistan_jobs=pakistan_jobs,
         india_jobs=india_jobs,
@@ -235,6 +254,8 @@ def dashboard():
         chart_category=chart_category,                   
         last_updated=last_updated,
         chart_skill_salary=chart_skill_salary,
+        chart_remote=chart_remote,
+        onsite_jobs=onsite_jobs,
     )
     
 
