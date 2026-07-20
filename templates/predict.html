@@ -104,7 +104,7 @@
     <div class="prediction-label">Not enough salary data for your selected skills</div>
     <div class="prediction-label" style="margin-top:8px;">
       Try selecting more common skills like Python, SQL, or Machine Learning
-  </div>
+    </div>
     {% else %}
     <div class="prediction-number">£{{ "{:,}".format(prediction) }}</div>
     <div style="color:#888; font-size:0.82rem; margin-top:8px;">
@@ -112,20 +112,19 @@
       <span style="color:#c9a84c;">£{{ "{:,}".format((prediction * 0.85)|int) }}</span>
     —
       <span style="color:#c9a84c;">£{{ "{:,}".format((prediction * 1.15)|int) }}</span>
-  </div>
-  <div class="prediction-label" style="margin-top:6px;">
-    Based on {{ selected_skills|length }} skill(s) selected
-  </div>
-  {% if location and ('new york' in location.lower() or 'san francisco' in location.lower() or 'chicago' in location.lower() or 'canada' in location.lower() or 'australia' in location.lower()) %}
-  <div class="prediction-label" style="margin-top:8px; color:#c9a84c;">
-    Note: Salary shown in £ equivalent — local currency values will differ
+    </div>
+    <div class="prediction-label" style="margin-top:6px;">
+      Based on {{ selected_skills|length }} skill(s) selected
+    </div>
+    {% if location and ('new york' in location.lower() or 'san francisco' in location.lower() or 'chicago' in location.lower() or 'canada' in location.lower() or 'australia' in location.lower()) %}
+    <div class="prediction-label" style="margin-top:8px; color:#c9a84c;">
+      Note: Salary shown in £ equivalent — local currency values will differ
+    </div>
+    {% endif %}
+    {% endif %}
   </div>
   {% endif %}
-  {% endif %}
-</div>
-{% endif %}
 
-</div>
 
 <footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
 
