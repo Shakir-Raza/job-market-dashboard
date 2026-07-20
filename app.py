@@ -102,6 +102,10 @@ def dashboard():
     india_jobs = len([j for j in jobs if "India" in (j.get("location") or "")])
     bangladesh_jobs = len([j for j in jobs if "Bangladesh" in (j.get("location") or "")])
     remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
+    uk_jobs = len([j for j in jobs if "United Kingdom" in (j.get("location") or "")])
+    canada_jobs = len([j for j in jobs if "Canada" in (j.get("location") or "")])
+    australia_jobs = len([j for j in jobs if "Australia" in (j.get("location") or "")])
+    germany_jobs = len([j for j in jobs if "Germany" in (j.get("location") or "")])
     
     # Category chart
     cat_data = {"Category": [c[0] for c in category_counts], "Jobs": [c[1] for c in category_counts]}

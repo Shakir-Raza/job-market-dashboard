@@ -38,6 +38,18 @@
       <a href="/jobs" class="btn btn-secondary">Clear</a>
     </div>
   </form>
+  <!-- Quick filters -->
+  <div class="quick-filters">
+    <a href="/jobs" class="qbtn {{ 'active' if not location and not category and not search else '' }}">All Jobs</a>
+    <a href="/jobs?location=Pakistan" class="qbtn {{ 'active' if location == 'Pakistan' else '' }}">🇵🇰 Pakistan</a>
+    <a href="/jobs?location=India" class="qbtn {{ 'active' if location == 'India' else '' }}">🇮🇳 India</a>
+    <a href="/jobs?location=Bangladesh" class="qbtn {{ 'active' if location == 'Bangladesh' else '' }}">🇧🇩 Bangladesh</a>
+    <a href="/jobs?location=Remote" class="qbtn {{ 'active' if location == 'Remote' else '' }}">🌍 Remote</a>
+    <a href="/jobs?location=United+Kingdom" class="qbtn {{ 'active' if location == 'United Kingdom' else '' }}">🇬🇧 UK</a>
+    <a href="/jobs?location=Canada" class="qbtn {{ 'active' if location == 'Canada' else '' }}">🇨🇦 Canada</a>
+    <a href="/jobs?location=Australia" class="qbtn {{ 'active' if location == 'Australia' else '' }}">🇦🇺 Australia</a>
+    <a href="/jobs?location=Germany" class="qbtn {{ 'active' if location == 'Germany' else '' }}">🇩🇪 Germany</a>
+  </div>
 
   <div class="job-count">Showing {{ jobs|length }} of {{ total_jobs }} jobs — Page {{ page }} of {{ total_pages }}</div>
 
