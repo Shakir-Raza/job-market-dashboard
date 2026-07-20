@@ -46,15 +46,26 @@ def train_model(jobs):
 
 def predict_salary(model, mlb, user_skills, location):
     if model is None:
-        return None
+        return 0
+
+    if not user_skills:
+        return 0
 
     # encode user skills
     skills_encoded = mlb.transform([user_skills])
     skills_df = pd.DataFrame(skills_encoded, columns=mlb.classes_)
 
     # encode location
-    is_us = 1 if any(city in location.lower() for city in ["new york", "san francisco", "chicago", "seattle", "austin", "manhattan", "us", "usa", "america"]) else 0
+    is_us = 1 if any(city in location.lower() for city in [
+        "new york", "san francisco", "chicago", "seattle",
+        "austin", "manhattan", "us", "usa", "america", "canada", "australia"
+    ]) else 0
     skills_df["is_us"] = is_us
 
     prediction = model.predict(skills_df)[0]
+
+    # if prediction is unrealistically low, return 0
+    if prediction < 5000:
+        return 0
+
     return max(0, round(prediction))
