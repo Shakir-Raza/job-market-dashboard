@@ -12,6 +12,7 @@ import json
 import pandas as pd
 from analytics.ml_model import train_model, predict_salary
 from collections import Counter
+from flask_caching import Cache
 
 load_dotenv()
 
@@ -20,14 +21,17 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 csrf = CSRFProtect(app)
-@app.context_processor
-def inject_job_count():
+@cache.cached(timeout=600, key_prefix='job_count')
+def get_job_count():
     try:
         result = supabase.table("jobs").select("id", count="exact").execute()
-        count = len(result.data)
+        return len(result.data)
     except:
-        count = 0
-    return dict(nav_job_count=count)
+        return 0
+
+@app.context_processor
+def inject_job_count():
+    return dict(nav_job_count=get_job_count())
 
 limiter = Limiter(
     get_remote_address,
@@ -35,12 +39,18 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"]
 )
 
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
+})
+
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_KEY")
 )
 
 @app.route("/")
+@cache.cached(timeout=300)
 def dashboard():
     result = supabase.table("jobs").select("*").execute()
     jobs = result.data
