@@ -20,6 +20,7 @@
     <a href="/">Dashboard</a>
     <a href="/jobs">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
     <a href="/predict">Salary Predictor</a>
+    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
   </div>
 </nav>
 
@@ -116,6 +117,20 @@
       document.getElementById('spinner').style.display = 'flex';
     });
   });
+</script>
+
+<script>
+  // load saved theme
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+  }
+
+  function toggleTheme() {
+    document.body.classList.toggle('light');
+    localStorage.setItem('theme',
+      document.body.classList.contains('light') ? 'light' : 'dark'
+    );
+  }
 </script>
 
 </body>
