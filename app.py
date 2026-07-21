@@ -21,6 +21,21 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 csrf = CSRFProtect(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
+})
+
+supabase = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_KEY")
+)
+
 @cache.cached(timeout=600, key_prefix='job_count')
 def get_job_count():
     try:
@@ -33,21 +48,11 @@ def get_job_count():
 def inject_job_count():
     return dict(nav_job_count=get_job_count())
 
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"]
-)
 
-cache = Cache(app, config={
-    'CACHE_TYPE': 'SimpleCache',
-    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
-})
 
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+
+
+
 
 @app.route("/")
 @cache.cached(timeout=300)
