@@ -51,6 +51,8 @@ def inject_job_count():
 @app.route("/")
 
 def dashboard():
+    
+    
     result = supabase.table("jobs").select("*").execute()
     jobs = result.data
     # last updated
