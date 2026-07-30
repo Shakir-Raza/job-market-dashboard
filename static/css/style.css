@@ -417,6 +417,25 @@ footer {
   margin-top: 60px;
 }
 
+/* Predict page mobile fixes */
+.skill-checkbox {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  gap: 6px;
+}
+.skills-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.predict-btn {
+  width: 100%;
+  padding: 12px;
+}
+.filters-bar input[name="location"] {
+  width: 100%;
+  min-width: unset;
+}
+
 /* ── SPINNER ─────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
