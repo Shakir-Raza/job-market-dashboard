@@ -119,12 +119,14 @@
 <footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
 
 <script>
-  var config = {
-    displayModeBar: false,
-    scrollZoom: false,
-    doubleClick: 'reset',
-    dragmode: false,
-  }
+
+  var mobileLayout = window.innerWidth < 768 ? {
+  font: { size: 10 },
+  margin: { l: 80, r: 10, t: 40, b: 60 },
+  title: { font: { size: 12 } }
+} : {};
+
+
 
   var chartSkills = {{ chart_skills | safe }};
   var chartLocation = {{ chart_location | safe }};
@@ -133,12 +135,22 @@
   var chartSkillSalary = {{ chart_skill_salary | safe }};
   var chartRemote = {{ chart_remote | safe }};
 
-  chartSkills.layout.dragmode = false;
-  chartLocation.layout.dragmode = false;
-  chartSalary.layout.dragmode = false;
-  chartCategory.layout.dragmode = false;
-  chartSkillSalary.layout.dragmode = false;
-  chartRemote.layout.dragmode = false;
+// Apply mobile layout
+
+  [chartSkills, chartLocation, chartSalary, chartCategory, chartSkillSalary, chartRemote].forEach(function(chart) {
+    Object.assign(chart.layout, mobileLayout);
+    chart.layout.dragmode = false;
+    chart.layout.autosize = true;
+});
+
+  var config = {
+    displayModeBar: false,
+    scrollZoom: false,
+    doubleClick: false,
+    dragmode: false,
+    responsive: true,
+}
+
 
   Plotly.newPlot('chart-skills', chartSkills.data, chartSkills.layout, config);
   Plotly.newPlot('chart-location', chartLocation.data, chartLocation.layout, config);
