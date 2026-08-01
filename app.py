@@ -42,7 +42,17 @@ def inject_job_count():
         count = 0
     return dict(nav_job_count=count)
 
+def count_by_country(jobs, keyword):
+    return len([j for j in jobs if keyword.lower() in (j.get("location") or "").lower()])
 
+pakistan_jobs   = count_by_country(jobs, "pakistan")
+india_jobs      = count_by_country(jobs, "india")
+bangladesh_jobs = count_by_country(jobs, "bangladesh")
+remote_jobs     = count_by_country(jobs, "remote")
+uk_jobs         = count_by_country(jobs, "united kingdom")
+canada_jobs     = count_by_country(jobs, "canada")
+australia_jobs  = count_by_country(jobs, "australia")
+germany_jobs    = count_by_country(jobs, "germany")
 
 
 
@@ -106,19 +116,7 @@ def dashboard():
         if skill_salary_count[skill] >= 3
 }
     skill_avg_salary = dict(sorted(skill_avg_salary.items(), key=lambda x: x[1], reverse=True)[:10])
-    
-    # country breakdown
-    
-    pakistan_jobs = len([j for j in jobs if "Pakistan" in (j.get("location") or "")])
-    india_jobs = len([j for j in jobs if "India" in (j.get("location") or "")])
-    bangladesh_jobs = len([j for j in jobs if "Bangladesh" in (j.get("location") or "")])
-    uk_jobs = len([j for j in jobs if "United Kingdom" in (j.get("location") or "")])
-    canada_jobs = len([j for j in jobs if "Canada" in (j.get("location") or "")])
-    australia_jobs = len([j for j in jobs if "Australia" in (j.get("location") or "")])
-    germany_jobs = len([j for j in jobs if "Germany" in (j.get("location") or "")])
-    remote_jobs = len([j for j in jobs if "Remote" in (j.get("location") or "")])
-    onsite_jobs = len([j for j in jobs if "Remote" not in (j.get("location") or "")])
-    
+
     # Category chart
     cat_data = {"Category": [c[0] for c in category_counts], "Jobs": [c[1] for c in category_counts]}
     fig_cat = px.bar(cat_data, x="Category", y="Jobs",                

@@ -1,3 +1,8 @@
+/* ═══════════════════════════════════════════
+   JOB MARKET DASHBOARD — style.css
+   Clean, organized, mobile-first
+═══════════════════════════════════════════ */
+
 /* ── RESET & BASE ────────────────────────── */
 *, *::before, *::after {
   margin: 0;
@@ -328,14 +333,12 @@ nav {
   background: var(--card);
   color: var(--muted);
   border: 1px solid var(--border);
-  
 }
 
 /* ── QUICK FILTERS ───────────────────────── */
 .quick-filters {
   display: flex;
   gap: 8px;
-
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
@@ -453,7 +456,6 @@ nav {
   cursor: pointer;
   margin-top: 16px;
   transition: opacity 0.2s;
-
 }
 .predict-btn:hover { opacity: 0.85; }
 
@@ -554,7 +556,7 @@ footer {
 }
 
 /* ══════════════════════════════════════════
-  EXTRA SMALL — max-width: 400px
+   EXTRA SMALL — max-width: 400px
 ══════════════════════════════════════════ */
 @media (max-width: 400px) {
   .stats-grid { grid-template-columns: 1fr; }
