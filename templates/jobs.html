@@ -9,22 +9,24 @@
 <body>
 
 <div id="spinner" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-  background:#0d0d0d99; z-index:9999; justify-content:center; align-items:center;">
-  <div style="width:40px; height:40px; border:3px solid #2a2a2a;
-    border-top-color:#c9a84c; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+  background:rgba(13, 13, 13, 0.85); z-index:9999; justify-content:center; align-items:center;">
+  <div style="width:40px; height:40px; border:3px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
 </div>
 
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:#e8e6df">D</span></a>
+  <a href="/" class="nav-logo">JM<span style="color:var(--text)">D</span></a>
   <div class="nav-links">
     <a href="/">Dashboard</a>
-    <a href="/jobs">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
+    <a href="/jobs" class="active">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
     <a href="/predict">Salary Predictor</a>
     <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
   </div>
 </nav>
 
 <div class="container">
+  <div class="bg-orb bg-orb-1"></div>
+
   <div class="page-header">
     <h1>All Jobs</h1>
     <p>Browse and filter {{ jobs|length }} live job postings</p>
@@ -39,7 +41,7 @@
       <a href="/jobs" class="btn btn-secondary">Clear</a>
     </div>
   </form>
-  <!-- Quick filters -->
+
   <div class="quick-filters">
     <a href="/jobs" class="qbtn {{ 'active' if not location and not category and not search else '' }}">All Jobs</a>
     <a href="/jobs?location=Pakistan" class="qbtn {{ 'active' if location == 'Pakistan' else '' }}">🇵🇰 Pakistan</a>
@@ -60,7 +62,7 @@
       <div class="job-card-header">
         <div class="job-title">{{ job.title }}</div>
         <div class="job-salary">
-          {% if job.salary_min %}£{{ job.salary_min|int }}{% else %}N/A{% endif %}
+          {% if job.salary_min %}£{{ "{:,}".format(job.salary_min|int) }}{% else %}N/A{% endif %}
         </div>
       </div>
       <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
@@ -71,56 +73,53 @@
       </div>
       <a href="/job/{{ job.id }}" class="job-link">View Details →</a>
     </div>
+    {% else %}
+    <div class="job-card" style="text-align: center; padding: 40px;">
+      <p style="color: var(--muted);">No jobs found matching your filters.</p>
+    </div>
     {% endfor %}
   </div>
-</div>
 
-<!-- Pagination -->
-<div class="pagination">
-  {% if page > 1 %}
-  <a href="/jobs?page={{ page - 1 }}&location={{ location }}&category={{ category }}&search={{ search }}"class="page-btn">← Previous</a>   
-  {% endif %}
-
-  {% for p in range(1, total_pages + 1) %}
-    {% if p == page %}
-    <span class="page-btn active">{{ p }}</span>
-    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-    <a href="/jobs?page={{ p }}&location={{ location }}&category={{ category }}&search={{ search }}"class="page-btn">{{ p }}</a> 
-    {% elif p == page - 3 or p == page + 3 %}
-    <span class="page-btn dots">...</span>
+  <div class="pagination">
+    {% if page > 1 %}
+    <a href="/jobs?page={{ page - 1 }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">← Previous</a>   
     {% endif %}
-  {% endfor %}
 
-  {% if page < total_pages %}
-  <a href="/jobs?page={{ page + 1 }}&location={{ location }}&category={{ category }}&search={{ search }}"class="page-btn">Next →</a> 
-  {% endif %}
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == page %}
+      <span class="page-btn active">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+      <a href="/jobs?page={{ p }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">{{ p }}</a> 
+      {% elif p == page - 3 or p == page + 3 %}
+      <span class="page-btn dots">...</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="/jobs?page={{ page + 1 }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">Next →</a> 
+    {% endif %}
+  </div>
 </div>
 
 <footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
 
 <script>
-  // show spinner on filter/search submit
   document.querySelector('form').addEventListener('submit', function() {
     document.getElementById('spinner').style.display = 'flex';
   });
 
-  // show spinner on pagination clicks
   document.querySelectorAll('.page-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       document.getElementById('spinner').style.display = 'flex';
     });
   });
 
-  // show spinner on quick filter clicks
   document.querySelectorAll('.qbtn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       document.getElementById('spinner').style.display = 'flex';
     });
   });
-</script>
 
-<script>
-  // load saved theme
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light');
   }

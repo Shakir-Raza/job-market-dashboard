@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - Page Not Found | Job Market Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">JM<span style="color:var(--text)">D</span></a>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/jobs">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
+    <a href="/predict">Salary Predictor</a>
+    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
+  </div>
+</nav>
+
+<div class="container" style="min-height: 70vh; display: flex; align-items: center; justify-content: center;">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <div class="prediction-box" style="max-width: 500px; width: 100%; padding: 40px 24px;">
+    <div class="prediction-number" style="font-size: 5rem; line-height: 1;">404</div>
+    <div style="font-size: 1.2rem; font-weight: 700; margin: 12px 0 8px 0; color: var(--text);">Page Not Found</div>
+    <div class="prediction-label" style="margin-bottom: 24px;">
+      The endpoint or job listing you requested does not exist or has been removed.
+    </div>
+    <a href="/" class="btn btn-primary" style="padding: 10px 24px;">Return to Dashboard</a>
+  </div>
+</div>
+
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+
+<script>
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+  }
+
+  function toggleTheme() {
+    document.body.classList.toggle('light');
+    localStorage.setItem('theme',
+      document.body.classList.contains('light') ? 'light' : 'dark'
+    );
+  }
+</script>
+
+</body>
+</html>
