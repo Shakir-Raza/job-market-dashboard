@@ -232,38 +232,116 @@ def dashboard():
 # ── Jobs listing ──────────────────────────
 @app.route("/jobs")
 def jobs_page():
-    category = request.args.get("category", "")[:100]
-    location = request.args.get("location", "")[:100]
-    search   = request.args.get("search", "")[:100]
-    page     = int(request.args.get("page", 1))
+    # Accept both new (q/country/sort) and legacy (search/location/category) params
+    q = (request.args.get("q") or request.args.get("search") or "")[:100].strip()
+    country = (request.args.get("country") or request.args.get("location") or "")[:100].strip()
+    category = (request.args.get("category") or "")[:100].strip()
+    sort_by = (request.args.get("sort") or "newest")[:20].strip()
+    try:
+        page = max(1, int(request.args.get("page", 1) or 1))
+    except (TypeError, ValueError):
+        page = 1
     per_page = 20
 
-    query = supabase.table("jobs").select("*").order("scraped_at", desc=True)
+    result = supabase.table("jobs").select("*").order("scraped_at", desc=True).execute()
+    all_jobs = result.data or []
 
+    # Search: title, company, location, skills
+    if q:
+        q_lower = q.lower()
+        def matches_search(job):
+            title = str(job.get("title") or "").lower()
+            company = str(job.get("company") or "").lower()
+            loc = str(job.get("location") or "").lower()
+            skills = job.get("skills") or []
+            if isinstance(skills, str):
+                skills_text = skills.lower()
+            else:
+                skills_text = " ".join(str(s).lower() for s in skills)
+            return (
+                q_lower in title
+                or q_lower in company
+                or q_lower in loc
+                or q_lower in skills_text
+            )
+        all_jobs = [j for j in all_jobs if matches_search(j)]
+
+    # Country / location filter
+    if country:
+        c_lower = country.lower()
+        aliases = {
+            "uk": ["uk", "united kingdom", "england", "britain"],
+            "united kingdom": ["uk", "united kingdom", "england", "britain"],
+            "usa": ["usa", "united states", "us", "america"],
+            "united states": ["usa", "united states", "us", "america"],
+            "remote": ["remote", "worldwide", "anywhere"],
+            "remote worldwide": ["remote", "worldwide", "anywhere"],
+        }
+        terms = aliases.get(c_lower, [c_lower])
+
+        def matches_country(job):
+            loc = str(job.get("location") or "").lower()
+            ctry = str(job.get("country") or "").lower()
+            blob = f"{loc} {ctry}"
+            return any(t in blob for t in terms)
+
+        all_jobs = [j for j in all_jobs if matches_country(j)]
+
+    # Category filter (legacy)
     if category:
-        query = query.ilike("category", f"%{category}%")
-    if location:
-        query = query.ilike("location", f"%{location}%")
-    if search:
-        query = query.ilike("title", f"%{search}%")
+        cat_lower = category.lower()
+        all_jobs = [
+            j for j in all_jobs
+            if cat_lower in str(j.get("category") or "").lower()
+        ]
 
-    result = query.execute()
-    all_jobs = result.data
+    # Sort
+    if sort_by == "salary_high":
+        all_jobs = sorted(
+            all_jobs,
+            key=lambda j: float(j.get("salary_min") or 0),
+            reverse=True,
+        )
+    elif sort_by == "salary_low":
+        all_jobs = sorted(
+            all_jobs,
+            key=lambda j: float(j.get("salary_min") or 0),
+        )
+    # else newest — already ordered by scraped_at from Supabase; keep list order
 
     total_jobs = len(all_jobs)
-    total_pages = (total_jobs + per_page - 1) // per_page
+    total_pages = max(1, (total_jobs + per_page - 1) // per_page)
+    page = min(page, total_pages)
     start = (page - 1) * per_page
-    end = start + per_page
-    jobs = all_jobs[start:end]
+    jobs = all_jobs[start:start + per_page]
 
-    return render_template("jobs.html",
+    static_countries = [
+        "Pakistan", "India", "Bangladesh",
+        "United Kingdom", "UK", "USA", "United States",
+        "Canada", "Australia", "Germany",
+        "Remote", "Remote Worldwide",
+    ]
+    from_data = sorted({
+        str(j.get("country") or "").strip()
+        for j in (result.data or [])
+        if j.get("country")
+    })
+    available_countries = list(dict.fromkeys(static_countries + from_data))
+
+    return render_template(
+        "jobs.html",
         jobs=jobs,
-        category=category,
-        location=location,
-        search=search,
-        page=page,
-        total_pages=total_pages,
         total_jobs=total_jobs,
+        total_pages=total_pages,
+        current_page=page,
+        page=page,
+        query=q,
+        search=q,
+        selected_country=country,
+        location=country,
+        category=category,
+        sort_by=sort_by,
+        available_countries=available_countries,
     )
 
 # ── Job detail ────────────────────────────
@@ -279,7 +357,7 @@ def job_detail(job_id):
 @app.route("/predict", methods=["GET", "POST"])
 @limiter.limit("30 per minute")
 def predict():
-    prediction = None
+    predicted_salary = None
     selected_skills = []
     location = ""
 
@@ -292,14 +370,19 @@ def predict():
         location = request.form.get("location", "")[:100]
         if model and selected_skills:
             predicted = predict_salary(model, mlb, selected_skills, location)
-            prediction = predicted
+            predicted_salary = predicted
+        elif not selected_skills:
+            predicted_salary = None
 
     from scraper.clean_data import SKILLS_LIST
-    return render_template("predict.html",
+    return render_template(
+        "predict.html",
         skills_list=SKILLS_LIST,
-        prediction=prediction,
+        available_skills=SKILLS_LIST,
+        prediction=predicted_salary,
+        predicted_salary=predicted_salary,
         selected_skills=selected_skills,
-        location=location
+        location=location,
     )
 
 # ── Debug route (remove after fixing) ────

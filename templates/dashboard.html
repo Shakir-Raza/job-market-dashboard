@@ -9,28 +9,37 @@
 </head>
 <body>
 
-<!-- Animated Particle & Wave Background Canvas -->
-<canvas id="hero-canvas"></canvas>
+<!-- High Dynamic Interactive Mouse-Particle Engine Canvas -->
+<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
 
 <nav>
-  <a href="/" class="nav-logo">JMD</a>
+  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
   <div class="nav-links">
     <a href="/" class="active">Dashboard</a>
     <a href="/jobs">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
     <a href="/predict">Salary Predictor</a>
+    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
   </div>
 </nav>
 
 <div class="container">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+
   <div class="page-header">
     <h1>Job Market Analytics</h1>
-    <p>Real-time analytics for tech roles across Pakistan, India, Bangladesh & Global Remote Market</p>
+    <p>Live remote jobs for Pakistan, India &amp; Bangladesh — updated weekly
+      {% if last_updated %}
+      <span style="color: var(--muted); font-size: 0.78rem;">| Last updated: {{ last_updated }}</span>
+      {% endif %}
+    </p>
   </div>
 
-  <div class="section-label">Overview Metrics</div>
+  <div class="section-label">Overview</div>
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="number" data-target="{{ total_jobs }}">0</div>
+      <div class="number">{{ total_jobs }}</div>
       <div class="label">Jobs Tracked</div>
     </div>
     <div class="stat-card">
@@ -38,135 +47,235 @@
       <div class="label">Avg Salary</div>
     </div>
     <div class="stat-card">
-      <div class="number" style="color: var(--accent);">{{ skill_counts[0][0].title() if skill_counts else "N/A" }}</div>
-      <div class="label">Top Skill Demand</div>
+      <div class="number">{{ skill_counts[0][0].title() if skill_counts else "N/A" }}</div>
+      <div class="label">Top Skill</div>
     </div>
     <div class="stat-card">
-      <div class="number" style="font-size: 1.5rem;">{{ location_counts[0][0].split(",")[0] if location_counts else "N/A" }}</div>
-      <div class="label">Top Hiring Region</div>
+      <div class="number">{{ location_counts[0][0].split(",")[0] if location_counts else "N/A" }}</div>
+      <div class="label">Top Location</div>
     </div>
   </div>
 
-  <div class="section-label">Market Intelligence Visuals</div>
+  <div class="section-label">Charts</div>
   <div class="charts-grid">
     <div class="chart-box" id="chart-skills"></div>
-    <div class="chart-box" id="chart-location"></div>  
+    <div class="chart-box" id="chart-location"></div>
   </div>
   <div class="chart-full" id="chart-salary"></div>
-  <div class="chart-full" id="chart-category"></div>
+  <div class="chart-full" id="chart-category" style="margin-bottom: 16px;"></div>
+  <div class="chart-full" id="chart-skill-salary" style="margin-bottom: 16px;"></div>
+  <div class="chart-full" id="chart-remote" style="margin-bottom: 16px;"></div>
+
+  <div class="section-label" style="margin-top: 32px;">Jobs by Region</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="number">{{ pakistan_jobs }}</div>
+      <div class="label">🇵🇰 Pakistan</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ india_jobs }}</div>
+      <div class="label">🇮🇳 India</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ bangladesh_jobs }}</div>
+      <div class="label">🇧🇩 Bangladesh</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ uk_jobs }}</div>
+      <div class="label">🇬🇧 United Kingdom</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ canada_jobs }}</div>
+      <div class="label">🇨🇦 Canada</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ australia_jobs }}</div>
+      <div class="label">🇦🇺 Australia</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ germany_jobs }}</div>
+      <div class="label">🇩🇪 Germany</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ remote_jobs }}</div>
+      <div class="label">🌍 Remote Worldwide</div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top: 32px;">Recent Job Postings</div>
+  <div class="jobs-grid">
+    {% for job in jobs %}
+    <div class="job-card">
+      <div class="job-card-header">
+        <div class="job-title">{{ job.title }}</div>
+        <div class="job-salary">
+          {% if job.salary_min %}£{{ "{:,}".format(job.salary_min|int) }}{% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
+      <div class="job-skills">
+        {% for skill in (job.skills or []) %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+      </div>
+      <a href="{{ job.source_url }}" target="_blank" class="job-link">View Job →</a>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
+
 <script>
-/* ── Plotly Custom Styling Override ──────────────── */
-const plotlyLayoutDefaults = {
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor: 'rgba(0,0,0,0)',
-  font: {
-    family: 'Plus Jakarta Sans, sans-serif',
-    color: '#9ca3af',
-    size: 12
-  },
-  title: {
-    font: { family: 'Outfit, sans-serif', size: 16, color: '#f3f4f6' }
-  },
-  xaxis: { gridcolor: 'rgba(201, 168, 76, 0.08)', zerolinecolor: 'rgba(201, 168, 76, 0.15)' },
-  yaxis: { gridcolor: 'rgba(201, 168, 76, 0.08)', zerolinecolor: 'rgba(201, 168, 76, 0.15)' },
-  margin: { t: 50, b: 40, l: 60, r: 20 }
-};
+  // High-Motion Dynamic Interactive Particle Engine
+  (function() {
+    const canvas = document.getElementById('hero-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-function renderPlot(id, chartObj) {
-  const mergedLayout = Object.assign({}, chartObj.layout, plotlyLayoutDefaults);
-  Plotly.newPlot(id, chartObj.data, mergedLayout, { responsive: true, displayModeBar: false });
-}
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
 
-renderPlot('chart-skills', {{ chart_skills | safe }});
-renderPlot('chart-location', {{ chart_location | safe }});
-renderPlot('chart-salary', {{ chart_salary | safe }});
-renderPlot('chart-category', {{ chart_category | safe }});
+    let mouse = { x: width / 2, y: height / 2 };
 
-/* ── Interactive Particle Background Canvas ──────── */
-const canvas = document.getElementById('hero-canvas');
-const ctx = canvas.getContext('2d');
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
 
-let width = canvas.width = window.innerWidth;
-let height = canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
 
-window.addEventListener('resize', () => {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
-});
+    class Particle {
+      constructor() {
+        this.reset();
+      }
 
-class Particle {
-  constructor() {
-    this.x = Math.random() * width;
-    this.y = Math.random() * height;
-    this.radius = Math.random() * 2 + 0.5;
-    this.vx = (Math.random() - 0.5) * 0.4;
-    this.vy = (Math.random() - 0.5) * 0.4;
-    this.alpha = Math.random() * 0.5 + 0.2;
-  }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = Math.random() * 2 + 1;
+        this.vx = (Math.random() - 0.5) * 1.2;
+        this.vy = (Math.random() - 0.5) * 1.2;
+        this.alpha = Math.random() * 0.5 + 0.3;
+      }
 
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    if (this.x < 0 || this.x > width) this.vx *= -1;
-    if (this.y < 0 || this.y > height) this.vy *= -1;
-  }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
 
-  draw() {
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(229, 193, 88, ${this.alpha})`;
-    ctx.fill();
-  }
-}
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
 
-const particles = Array.from({ length: 45 }, () => new Particle());
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          this.x -= (dx / dist) * 1.5;
+          this.y -= (dy / dist) * 1.5;
+        }
+      }
 
-function animateCanvas() {
-  ctx.clearRect(0, 0, width, height);
-  
-  // Draw particles and dynamic web connections
-  for (let i = 0; i < particles.length; i++) {
-    particles[i].update();
-    particles[i].draw();
-
-    for (let j = i + 1; j < particles.length; j++) {
-      const dx = particles[i].x - particles[j].x;
-      const dy = particles[i].y - particles[j].y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 140) {
+      draw() {
         ctx.beginPath();
-        ctx.moveTo(particles[i].x, particles[i].y);
-        ctx.lineTo(particles[j].x, particles[j].y);
-        ctx.strokeStyle = `rgba(201, 168, 76, ${0.12 * (1 - dist / 140)})`;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = document.body.classList.contains('light')
+          ? `rgba(184, 148, 42, ${this.alpha})`
+          : `rgba(201, 168, 76, ${this.alpha})`;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
     }
-  }
-  requestAnimationFrame(animateCanvas);
-}
-animateCanvas();
 
-/* ── Counter Number Increment Animation ──────────── */
-document.querySelectorAll('.number[data-target]').forEach(counter => {
-  const target = +counter.getAttribute('data-target');
-  let current = 0;
-  const increment = Math.ceil(target / 40);
-  
-  const updateCount = () => {
-    current += increment;
-    if (current < target) {
-      counter.innerText = current;
-      setTimeout(updateCount, 25);
-    } else {
-      counter.innerText = target;
+    const particles = Array.from({ length: 65 }, () => new Particle());
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 140) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = document.body.classList.contains('light')
+              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
+              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(animate);
     }
+    animate();
+  })();
+
+  // Theme Toggling Logic
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+  }
+
+  function toggleTheme() {
+    document.body.classList.toggle('light');
+    localStorage.setItem('theme',
+      document.body.classList.contains('light') ? 'light' : 'dark'
+    );
+  }
+
+  // Plotly Charts Setup — mobile-aware
+  var isMobile = window.innerWidth < 768;
+
+  var mobileOverride = isMobile ? {
+    font: { size: 9 },
+    margin: { l: 70, r: 8, t: 35, b: 50 },
+    title: { font: { size: 11 } },
+    xaxis: { tickfont: { size: 8 } },
+    yaxis: { tickfont: { size: 8 } },
+  } : {};
+
+  var config = {
+    displayModeBar: false,
+    scrollZoom: false,
+    doubleClick: false,
+    dragmode: false,
+    responsive: true,
   };
-  updateCount();
-});
+
+  function plotChart(id, chartData) {
+    var layout = Object.assign({}, chartData.layout, mobileOverride);
+    layout.paper_bgcolor = "rgba(0,0,0,0)";
+    layout.plot_bgcolor = "rgba(0,0,0,0)";
+    layout.dragmode = false;
+    layout.autosize = true;
+    Plotly.newPlot(id, chartData.data, layout, config);
+  }
+
+  plotChart('chart-skills',      {{ chart_skills | safe }});
+  plotChart('chart-location',    {{ chart_location | safe }});
+  plotChart('chart-salary',      {{ chart_salary | safe }});
+  plotChart('chart-category',    {{ chart_category | safe }});
+  plotChart('chart-skill-salary',{{ chart_skill_salary | safe }});
+  plotChart('chart-remote',      {{ chart_remote | safe }});
+
+  window.addEventListener('resize', function() {
+    ['chart-skills','chart-location','chart-salary',
+    'chart-category','chart-skill-salary','chart-remote'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) Plotly.Plots.resize(el);
+    });
+  });
 </script>
+
 </body>
 </html>

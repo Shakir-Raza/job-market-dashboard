@@ -3,22 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>All Jobs — Job Market Dashboard</title>
+  <title>All Jobs - Job Market Analytics</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-<div id="spinner" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-  background:rgba(13, 13, 13, 0.85); z-index:9999; justify-content:center; align-items:center;">
-  <div style="width:40px; height:40px; border:3px solid var(--border);
-    border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-</div>
+<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
 
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:var(--text)">D</span></a>
+  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
   <div class="nav-links">
     <a href="/">Dashboard</a>
-    <a href="/jobs" class="active">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
+    <a href="/jobs" class="active">All Jobs <span class="nav-badge">{{ total_jobs if total_jobs is defined else (jobs|length) }}</span></a>
     <a href="/predict">Salary Predictor</a>
     <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
   </div>
@@ -26,109 +22,215 @@
 
 <div class="container">
   <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
 
   <div class="page-header">
-    <h1>All Jobs</h1>
-    <p>Browse and filter {{ jobs|length }} live job postings</p>
+    <h1>All Job Listings</h1>
+    <p>Explore, filter, and analyze live market opportunities</p>
   </div>
 
-  <form method="GET" action="/jobs">
-    <div class="filters-bar">
-      <input type="text" name="search" placeholder="Search job titles..." value="{{ search }}" style="min-width: 200px;">
-      <input type="text" name="location" placeholder="Filter by location..." value="{{ location }}">
-      <input type="text" name="category" placeholder="Filter by category..." value="{{ category }}">
-      <button type="submit" class="btn btn-primary">Filter</button>
-      <a href="/jobs" class="btn btn-secondary">Clear</a>
-    </div>
+  <!-- Filters Bar — GET so params show in URL and work with pagination -->
+  <form method="GET" action="/jobs" class="filters-bar">
+    <input type="text" name="q" placeholder="Search title, skills or company..."
+           value="{{ query|default('', true) }}" style="flex: 2; min-width: 200px;">
+
+    <!-- Full country list (override via available_countries from Flask if provided) -->
+    {% set countries = available_countries if available_countries is defined and available_countries else [
+      'Pakistan', 'India', 'Bangladesh', 'United Kingdom', 'UK', 'USA', 'United States',
+      'Canada', 'Australia', 'Germany', 'Remote', 'Remote Worldwide'
+    ] %}
+    <select name="country">
+      <option value="">All Countries</option>
+      {% for c in countries %}
+      <option value="{{ c }}" {% if selected_country is defined and selected_country == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="sort">
+      <option value="newest" {% if sort_by is defined and sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+      <option value="salary_high" {% if sort_by is defined and sort_by == 'salary_high' %}selected{% endif %}>Highest Salary</option>
+      <option value="salary_low" {% if sort_by is defined and sort_by == 'salary_low' %}selected{% endif %}>Lowest Salary</option>
+    </select>
+
+    <button type="submit" class="btn btn-primary">Search</button>
+    <a href="/jobs" class="btn btn-secondary">Reset</a>
   </form>
 
+  <!-- Quick filter chips — preserve sort when possible -->
   <div class="quick-filters">
-    <a href="/jobs" class="qbtn {{ 'active' if not location and not category and not search else '' }}">All Jobs</a>
-    <a href="/jobs?location=Pakistan" class="qbtn {{ 'active' if location == 'Pakistan' else '' }}">🇵🇰 Pakistan</a>
-    <a href="/jobs?location=India" class="qbtn {{ 'active' if location == 'India' else '' }}">🇮🇳 India</a>
-    <a href="/jobs?location=Bangladesh" class="qbtn {{ 'active' if location == 'Bangladesh' else '' }}">🇧🇩 Bangladesh</a>
-    <a href="/jobs?location=Remote" class="qbtn {{ 'active' if location == 'Remote' else '' }}">🌍 Remote</a>
-    <a href="/jobs?location=United+Kingdom" class="qbtn {{ 'active' if location == 'United Kingdom' else '' }}">🇬🇧 UK</a>
-    <a href="/jobs?location=Canada" class="qbtn {{ 'active' if location == 'Canada' else '' }}">🇨🇦 Canada</a>
-    <a href="/jobs?location=Australia" class="qbtn {{ 'active' if location == 'Australia' else '' }}">🇦🇺 Australia</a>
-    <a href="/jobs?location=Germany" class="qbtn {{ 'active' if location == 'Germany' else '' }}">🇩🇪 Germany</a>
+    <a href="/jobs?q=python{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if query is defined and query|lower == 'python' %}active{% endif %}">Python</a>
+    <a href="/jobs?q=react{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if query is defined and query|lower == 'react' %}active{% endif %}">React</a>
+    <a href="/jobs?q=aws{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if query is defined and query|lower == 'aws' %}active{% endif %}">AWS</a>
+    <a href="/jobs?q=javascript{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if query is defined and query|lower == 'javascript' %}active{% endif %}">JavaScript</a>
+    <a href="/jobs?q=sql{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if query is defined and query|lower == 'sql' %}active{% endif %}">SQL</a>
+    <a href="/jobs?country=Remote{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if selected_country is defined and 'remote' in selected_country|lower %}active{% endif %}">Remote</a>
+    <a href="/jobs?country=Pakistan{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if selected_country is defined and selected_country == 'Pakistan' %}active{% endif %}">Pakistan</a>
+    <a href="/jobs?country=India{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if selected_country is defined and selected_country == 'India' %}active{% endif %}">India</a>
+    <a href="/jobs?sort=salary_high{% if query is defined and query %}&q={{ query }}{% endif %}{% if selected_country is defined and selected_country %}&country={{ selected_country }}{% endif %}"
+       class="qbtn {% if sort_by is defined and sort_by == 'salary_high' %}active{% endif %}">High Salary</a>
   </div>
 
-  <div class="job-count">Showing {{ jobs|length }} of {{ total_jobs }} jobs — Page {{ page }} of {{ total_pages }}</div>
+  <div class="job-count">
+    Showing {{ jobs|length }}{% if total_jobs is defined %} of {{ total_jobs }}{% endif %} jobs
+    {% if query %}<span style="color: var(--accent);"> · “{{ query }}”</span>{% endif %}
+    {% if selected_country %}<span style="color: var(--accent);"> · {{ selected_country }}</span>{% endif %}
+  </div>
 
+  <!-- Jobs Grid -->
   <div class="jobs-grid">
     {% for job in jobs %}
     <div class="job-card">
       <div class="job-card-header">
-        <div class="job-title">{{ job.title }}</div>
+        <div class="job-title">
+          {% if job.id is defined %}
+            <a href="/job/{{ job.id }}" style="color: var(--text); text-decoration: none;">{{ job.title }}</a>
+          {% else %}
+            {{ job.title }}
+          {% endif %}
+        </div>
         <div class="job-salary">
-          {% if job.salary_min %}£{{ "{:,}".format(job.salary_min|int) }}{% else %}N/A{% endif %}
+          {% if job.salary_min is defined and job.salary_min is not none and job.salary_min != '' %}
+            £{{ "{:,}".format(job.salary_min|int) }}
+          {% else %}
+            N/A
+          {% endif %}
         </div>
       </div>
-      <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
+      <div class="job-meta">{{ job.company }} — {{ job.location }}{% if job.country %} ({{ job.country }}){% endif %}</div>
+
       <div class="job-skills">
         {% for skill in (job.skills or []) %}
         <span class="skill-tag">{{ skill }}</span>
         {% endfor %}
       </div>
-      <a href="/job/{{ job.id }}" class="job-link">View Details →</a>
+
+      <div style="display: flex; gap: 12px; margin-top: 16px; align-items: center;">
+        {% if job.id is defined %}
+        <a href="/job/{{ job.id }}" class="job-link">View Details →</a>
+        {% endif %}
+        {% if job.source_url %}
+        <a href="{{ job.source_url }}" target="_blank" class="job-link" style="color: var(--muted); font-size: 0.85rem;">Source ↗</a>
+        {% endif %}
+      </div>
     </div>
     {% else %}
-    <div class="job-card" style="text-align: center; padding: 40px;">
-      <p style="color: var(--muted);">No jobs found matching your filters.</p>
-    </div>
+    <p style="color: var(--muted);">No jobs found matching your criteria. Try clearing filters.</p>
     {% endfor %}
   </div>
 
-  <div class="pagination">
-    {% if page > 1 %}
-    <a href="/jobs?page={{ page - 1 }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">← Previous</a>   
-    {% endif %}
-
-    {% for p in range(1, total_pages + 1) %}
-      {% if p == page %}
-      <span class="page-btn active">{{ p }}</span>
-      {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-      <a href="/jobs?page={{ p }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">{{ p }}</a> 
-      {% elif p == page - 3 or p == page + 3 %}
-      <span class="page-btn dots">...</span>
-      {% endif %}
+  <!-- Pagination — keeps q, country, sort -->
+  {% set pages_count = total_pages if total_pages is defined and total_pages > 1 else 1 %}
+  {% if pages_count > 1 %}
+  <div class="pagination-container">
+    {% for page in range(1, pages_count + 1) %}
+      <a href="/jobs?page={{ page }}&q={{ query|default('', true)|urlencode }}&country={{ selected_country|default('', true)|urlencode }}&sort={{ sort_by|default('newest', true) }}"
+         class="page-box {% if current_page is defined and page == current_page %}active{% elif current_page is not defined and page == 1 %}active{% endif %}">
+        {{ page }}
+      </a>
     {% endfor %}
-
-    {% if page < total_pages %}
-    <a href="/jobs?page={{ page + 1 }}&location={{ location }}&category={{ category }}&search={{ search }}" class="page-btn">Next →</a> 
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 
-<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly & Supabase</footer>
+<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
 
 <script>
-  document.querySelector('form').addEventListener('submit', function() {
-    document.getElementById('spinner').style.display = 'flex';
-  });
+  (function() {
+    const canvas = document.getElementById('hero-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-  document.querySelectorAll('.page-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.getElementById('spinner').style.display = 'flex';
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+    let mouse = { x: width / 2, y: height / 2 };
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
     });
-  });
 
-  document.querySelectorAll('.qbtn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.getElementById('spinner').style.display = 'flex';
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
     });
-  });
 
-  if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light');
-  }
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = Math.random() * 2 + 1;
+        this.vx = (Math.random() - 0.5) * 1.2;
+        this.vy = (Math.random() - 0.5) * 1.2;
+        this.alpha = Math.random() * 0.5 + 0.3;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          this.x -= (dx / dist) * 1.5;
+          this.y -= (dy / dist) * 1.5;
+        }
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = document.body.classList.contains('light')
+          ? `rgba(184, 148, 42, ${this.alpha})`
+          : `rgba(201, 168, 76, ${this.alpha})`;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
 
+    const particles = Array.from({ length: 65 }, () => new Particle());
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 140) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = document.body.classList.contains('light')
+              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
+              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+    animate();
+  })();
+
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
   function toggleTheme() {
     document.body.classList.toggle('light');
-    localStorage.setItem('theme',
-      document.body.classList.contains('light') ? 'light' : 'dark'
-    );
+    localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
   }
 </script>
 
