@@ -1,55 +1,49 @@
-import pandas as pd
+"""Normalize Remotive API job payloads."""
+
 import re
+import pandas as pd
 
-SKILLS_LIST = [
-    "python", "flask", "django", "fastapi",
-    "sql", "postgresql", "mysql", "mongodb",
-    "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch",
-    "machine learning", "deep learning", "nlp",
-    "javascript", "react", "node.js", "typescript",
-    "docker", "kubernetes", "aws", "azure", "gcp",
-    "git", "linux", "rest api", "graphql",
-    "data analysis", "data science", "tableau", "power bi",
-]
+from skills import extract_skills
+from location_utils import infer_job_type, normalize_country, currency_for_country
 
-def extract_skills(text):
-    if not text:
-        return []
-    text = text.lower()
-    return [skill for skill in SKILLS_LIST if skill in text]
 
 def clean_remote_jobs(raw_jobs):
     cleaned = []
     for job in raw_jobs:
-        title       = job.get("title", "").strip()
-        company     = job.get("company_name", "").strip()
-        location    = job.get("candidate_required_location") or "Remote"
-        description = job.get("description", "")
-        source_url  = job.get("url", "")
-        posted_date = job.get("publication_date", "")
-        category    = job.get("category", "")
-        tags        = job.get("tags", [])
+        title = (job.get("title") or "").strip()
+        company = (job.get("company_name") or "").strip()
+        location = job.get("candidate_required_location") or "Remote"
+        description = job.get("description") or ""
+        source_url = job.get("url") or ""
+        posted_date = job.get("publication_date") or ""
+        category = job.get("category") or ""
+        tags = job.get("tags") or []
 
-        # clean HTML from description
-        clean_desc = re.sub(r'<[^>]+>', ' ', description)
-        clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+        clean_desc = re.sub(r"<[^>]+>", " ", description)
+        clean_desc = re.sub(r"\s+", " ", clean_desc).strip()
 
-        # extract skills from title + tags + description
-        skills = extract_skills(title + " " + " ".join(tags) + " " + clean_desc[:500])
+        skills = extract_skills(f"{title} {' '.join(tags)} {clean_desc[:500]}")
 
-        # salary not usually provided by Remotive
+        location_str = f"{location} (Remote)" if "remote" not in location.lower() else location
+        country = normalize_country(location) or "remote"
+        job_type = infer_job_type(location_str, explicit="remote")
+        currency = currency_for_country(country, location_str)
+
         cleaned.append({
-            "title":       title,
-            "company":     company,
-            "location":    location + " (Remote)",
-            "salary_min":  None,
-            "salary_max":  None,
-            "skills":      skills,
-            "category":    category,
-            "source_url":  source_url,
+            "title": title,
+            "company": company,
+            "location": location_str,
+            "salary_min": None,
+            "salary_max": None,
+            "skills": skills,
+            "category": category,
+            "source_url": source_url,
             "posted_date": posted_date,
             "description": clean_desc[:500],
+            "job_type": job_type,
+            "currency": currency,
+            "source": "remotive",
+            "country": country,
         })
 
-    df = pd.DataFrame(cleaned)
-    return df
+    return pd.DataFrame(cleaned)

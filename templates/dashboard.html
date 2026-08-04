@@ -43,7 +43,7 @@
       <div class="label">Jobs Tracked</div>
     </div>
     <div class="stat-card">
-      <div class="number">£{{ "{:,}".format(avg_salary) }}</div>
+      <div class="number">{% if avg_salary and avg_salary > 0 %}{{ format_salary(avg_salary, avg_salary_currency) if format_salary is defined else ("£{:,}".format(avg_salary)) }}{% else %}—{% endif %}</div>
       <div class="label">Avg Salary</div>
     </div>
     <div class="stat-card">
@@ -109,7 +109,7 @@
       <div class="job-card-header">
         <div class="job-title">{{ job.title }}</div>
         <div class="job-salary">
-          {% if job.salary_min %}£{{ "{:,}".format(job.salary_min|int) }}{% else %}N/A{% endif %}
+          {% if job.salary_min %}{{ format_salary(job.salary_min, job.currency) if format_salary is defined else ("£{:,}".format(job.salary_min|int)) }}{% else %}N/A{% endif %}
         </div>
       </div>
       <div class="job-meta">{{ job.company }} — {{ job.location }}</div>

@@ -1,112 +1,188 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from supabase import create_client
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
+import sys
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly
 import json
-from analytics.ml_model import train_model, predict_salary
 from collections import Counter
+from pathlib import Path
 
 load_dotenv()
 
+# ── Startup env validation ─────────────────────────────────────
+REQUIRED_ENV = ("SUPABASE_URL", "SUPABASE_KEY", "SECRET_KEY")
+_missing = [k for k in REQUIRED_ENV if not os.getenv(k)]
+if _missing:
+    raise SystemExit(f"Missing required environment variables: {', '.join(_missing)}")
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["WTF_CSRF_TIME_LIMIT"] = 3600
 
 csrf = CSRFProtect(app)
 
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["200 per day", "50 per hour"],
 )
 
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
+    os.getenv("SUPABASE_KEY"),
 )
 
-# ── Helper ────────────────────────────────
+# Shared location helpers
+_scraper_path = Path(__file__).resolve().parent / "scraper"
+if str(_scraper_path) not in sys.path:
+    sys.path.insert(0, str(_scraper_path))
+from location_utils import matches_country, normalize_country  # noqa: E402
+from analytics.ml_model import train_model, predict_salary
+
+
 def count_by_country(jobs, keyword):
-    return len([j for j in jobs if keyword.lower() in (j.get("location") or "").lower()])
+    """Count jobs whose location/country match a keyword via shared aliases."""
+    return len([
+        j for j in jobs
+        if matches_country(j.get("location"), keyword, j.get("country"))
+    ])
 
-# ── Context processor ─────────────────────
-@app.context_processor
-def inject_job_count():
+
+CURRENCY_SYMBOLS = {
+    "GBP": "£",
+    "USD": "$",
+    "EUR": "€",
+    "INR": "₹",
+    "PKR": "₨",
+    "BDT": "৳",
+    "CAD": "C$",
+    "AUD": "A$",
+}
+
+
+def format_salary(amount, currency=None):
+    if amount is None:
+        return "N/A"
     try:
-        result = supabase.table("jobs").select("id", count="exact").execute()
-        count = len(result.data)
-    except:
-        count = 0
-    return dict(nav_job_count=count)
+        n = int(float(amount))
+    except (TypeError, ValueError):
+        return "N/A"
+    sym = CURRENCY_SYMBOLS.get((currency or "GBP").upper(), (currency or "£") + " ")
+    return f"{sym}{n:,}"
 
-# ── Dashboard ─────────────────────────────
+
+@app.context_processor
+def inject_globals():
+    """Nav job count + salary formatter available in all templates."""
+    count = 0
+    try:
+        result = supabase.table("jobs").select("id", count="exact").limit(1).execute()
+        # Prefer exact count from response if available
+        count = getattr(result, "count", None)
+        if count is None:
+            count = len(result.data or [])
+    except Exception as e:
+        app.logger.warning("inject_job_count failed: %s", e)
+        count = 0
+    return dict(nav_job_count=count, format_salary=format_salary)
+
+
+@app.route("/health")
+@app.route("/healthz")
+def health():
+    try:
+        supabase.table("jobs").select("id").limit(1).execute()
+        return jsonify(status="ok"), 200
+    except Exception as e:
+        return jsonify(status="error", detail=str(e)), 503
+
+
 @app.route("/")
 def dashboard():
-    result = supabase.table("jobs").select("*").execute()
-    jobs = result.data
+    try:
+        result = supabase.table("jobs").select("*").execute()
+        jobs = result.data or []
+    except Exception as e:
+        app.logger.error("dashboard fetch failed: %s", e)
+        jobs = []
 
     total_jobs = len(jobs)
 
-    # skills
     all_skills = []
     for job in jobs:
         all_skills.extend(job.get("skills") or [])
     skill_counts = Counter(all_skills).most_common(10)
 
-    # salary
-    salaries = [j["salary_min"] for j in jobs if j.get("salary_min")]
-    avg_salary = round(sum(salaries) / len(salaries)) if salaries else 0
+    # Segment salary stats by currency to avoid mixing £ and PKR etc.
+    salaries_by_currency = {}
+    for j in jobs:
+        try:
+            val = float(j.get("salary_min"))
+            if val <= 1000:
+                continue
+        except (TypeError, ValueError):
+            continue
+        cur = (j.get("currency") or "GBP").upper()
+        salaries_by_currency.setdefault(cur, []).append(val)
 
-    # locations
+    # Prefer GBP for headline avg when available, else largest sample
+    primary_currency = "GBP"
+    if primary_currency not in salaries_by_currency and salaries_by_currency:
+        primary_currency = max(salaries_by_currency, key=lambda c: len(salaries_by_currency[c]))
+    primary_sals = salaries_by_currency.get(primary_currency, [])
+    avg_salary = round(sum(primary_sals) / len(primary_sals)) if primary_sals else 0
+    avg_salary_currency = primary_currency if primary_sals else None
+    salary_coverage = round(100 * sum(len(v) for v in salaries_by_currency.values()) / total_jobs) if total_jobs else 0
+
     locations = [j["location"] for j in jobs if j.get("location")]
     location_counts = Counter(locations).most_common(5)
 
-    # last updated
     last_updated = None
     if jobs:
         dates = [j.get("scraped_at") for j in jobs if j.get("scraped_at")]
         if dates:
             last_updated = max(dates)[:10]
 
-    # country breakdown
-    pakistan_jobs   = count_by_country(jobs, "pakistan")
-    india_jobs      = count_by_country(jobs, "india")
+    pakistan_jobs = count_by_country(jobs, "pakistan")
+    india_jobs = count_by_country(jobs, "india")
     bangladesh_jobs = count_by_country(jobs, "bangladesh")
-    remote_jobs     = count_by_country(jobs, "remote")
-    uk_jobs         = count_by_country(jobs, "united kingdom")
-    canada_jobs     = count_by_country(jobs, "canada")
-    australia_jobs  = count_by_country(jobs, "australia")
-    germany_jobs    = count_by_country(jobs, "germany")
-    onsite_jobs     = len([j for j in jobs if "Remote" not in (j.get("location") or "")])
+    remote_jobs = count_by_country(jobs, "remote")
+    uk_jobs = count_by_country(jobs, "united kingdom")
+    canada_jobs = count_by_country(jobs, "canada")
+    australia_jobs = count_by_country(jobs, "australia")
+    germany_jobs = count_by_country(jobs, "germany")
 
-    # category breakdown
+    # Prefer job_type column when present
+    if any(j.get("job_type") for j in jobs):
+        remote_jobs = len([j for j in jobs if (j.get("job_type") or "") == "remote"])
+        onsite_jobs = len([j for j in jobs if (j.get("job_type") or "") in ("onsite", "hybrid")])
+    else:
+        onsite_jobs = len([j for j in jobs if "remote" not in (j.get("location") or "").lower()])
+
     category_counts = Counter([j["category"] for j in jobs if j.get("category")]).most_common(8)
 
-    # avg salary by skill
     skill_salary = {}
     skill_salary_count = {}
     for job in jobs:
-        sal = job.get("salary_min")
-        if not sal:
-            continue
         try:
-            sal = float(sal)
+            sal = float(job.get("salary_min"))
             if sal < 1000:
                 continue
-        except:
+        except (TypeError, ValueError):
+            continue
+        # Only aggregate GBP (or primary) to avoid cross-currency averages
+        cur = (job.get("currency") or "GBP").upper()
+        if cur != primary_currency:
             continue
         for skill in (job.get("skills") or []):
-            if skill not in skill_salary:
-                skill_salary[skill] = 0
-                skill_salary_count[skill] = 0
-            skill_salary[skill] += sal
-            skill_salary_count[skill] += 1
+            skill_salary[skill] = skill_salary.get(skill, 0) + sal
+            skill_salary_count[skill] = skill_salary_count.get(skill, 0) + 1
 
     skill_avg_salary = {
         skill: round(skill_salary[skill] / skill_salary_count[skill])
@@ -115,101 +191,114 @@ def dashboard():
     }
     skill_avg_salary = dict(sorted(skill_avg_salary.items(), key=lambda x: x[1], reverse=True)[:10])
 
-    # ── Charts ────────────────────────────
-    # Skills chart
+    # ── Charts ─────────────────────────────────────────────────
     skills_df_data = {"Skill": [s[0] for s in skill_counts], "Jobs": [s[1] for s in skill_counts]}
-    fig_skills = px.bar(skills_df_data, x="Jobs", y="Skill", orientation="h",
-        title="Top Skills in Demand", color_discrete_sequence=["#c9a84c"])
-    fig_skills.update_layout(paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+    fig_skills = px.bar(
+        skills_df_data, x="Jobs", y="Skill", orientation="h",
+        title="Top Skills in Demand", color_discrete_sequence=["#c9a84c"],
+    )
+    fig_skills.update_layout(
+        paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
         font_color="#e8e6df", title_font_color="#c9a84c",
-        yaxis=dict(autorange="reversed", categoryorder="total ascending"))
+        yaxis=dict(autorange="reversed", categoryorder="total ascending"),
+    )
     chart_skills = json.dumps(fig_skills, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # Location chart
     loc_data = {"Location": [l[0] for l in location_counts], "Jobs": [l[1] for l in location_counts]}
-    fig_loc = px.bar(loc_data, x="Location", y="Jobs",
-        title="Top Hiring Locations", color_discrete_sequence=["#1D9E75"])
-    fig_loc.update_layout(paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
-        font_color="#e8e6df", title_font_color="#1D9E75")
+    fig_loc = px.bar(
+        loc_data, x="Location", y="Jobs",
+        title="Top Hiring Locations", color_discrete_sequence=["#1D9E75"],
+    )
+    fig_loc.update_layout(
+        paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+        font_color="#e8e6df", title_font_color="#1D9E75",
+    )
     chart_location = json.dumps(fig_loc, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # Salary histogram
-    salary_data = []
-    for j in jobs:
-        try:
-            val = j.get("salary_min")
-            if val is not None:
-                f = float(val)
-                if f > 1000:
-                    salary_data.append(f)
-        except:
-            pass
-
+    salary_data = primary_sals
     if salary_data:
         fig_salary = go.Figure(data=[go.Histogram(x=salary_data, nbinsx=20, marker_color="#7F77DD")])
         fig_salary.update_layout(
-            title=f"Salary Distribution ({len(salary_data)} jobs with salary data)",
+            title=f"Salary Distribution — {primary_currency} ({len(salary_data)} jobs)",
             paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
             font_color="#e8e6df", title_font_color="#7F77DD",
-            showlegend=False, xaxis_title="Salary (£/year)", yaxis_title="Number of Jobs")
+            showlegend=False,
+            xaxis_title=f"Salary ({primary_currency}/year)",
+            yaxis_title="Number of Jobs",
+        )
     else:
         fig_salary = go.Figure()
         fig_salary.update_layout(
             title="Salary Distribution — No salary data available",
             paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
             font_color="#e8e6df", title_font_color="#7F77DD",
-            annotations=[dict(text="Most remote jobs don't list salary publicly",
+            annotations=[dict(
+                text="Most remote jobs don't list salary publicly",
                 x=0.5, y=0.5, xref="paper", yref="paper",
-                showarrow=False, font=dict(color="#555", size=14))])
+                showarrow=False, font=dict(color="#555", size=14),
+            )],
+        )
     chart_salary = json.dumps(fig_salary, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # Category chart
     cat_data = {"Category": [c[0] for c in category_counts], "Jobs": [c[1] for c in category_counts]}
-    fig_cat = px.bar(cat_data, x="Category", y="Jobs",
-        title="Jobs by Category", color_discrete_sequence=["#D85A30"])
-    fig_cat.update_layout(paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
-        font_color="#e8e6df", title_font_color="#D85A30")
+    fig_cat = px.bar(
+        cat_data, x="Category", y="Jobs",
+        title="Jobs by Category", color_discrete_sequence=["#D85A30"],
+    )
+    fig_cat.update_layout(
+        paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
+        font_color="#e8e6df", title_font_color="#D85A30",
+    )
     chart_category = json.dumps(fig_cat, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # Avg salary by skill chart
     if skill_avg_salary:
         fig_skill_sal = px.bar(
             x=list(skill_avg_salary.values()),
             y=list(skill_avg_salary.keys()),
             orientation="h",
-            title="Average Salary by Skill (£/year)",
-            color_discrete_sequence=["#1D9E75"])
+            title=f"Average Salary by Skill ({primary_currency}/year)",
+            color_discrete_sequence=["#1D9E75"],
+        )
         fig_skill_sal.update_layout(
             paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
             font_color="#e8e6df", title_font_color="#1D9E75",
             yaxis=dict(autorange="reversed"),
-            xaxis_title="Avg Salary (£/year)", yaxis_title="Skill", showlegend=False)
+            xaxis_title=f"Avg Salary ({primary_currency}/year)",
+            yaxis_title="Skill", showlegend=False,
+        )
     else:
         fig_skill_sal = go.Figure()
         fig_skill_sal.update_layout(
             title="Average Salary by Skill — Not enough data yet",
             paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
             font_color="#e8e6df", title_font_color="#1D9E75",
-            annotations=[dict(text="Run scraper with more salary-inclusive sources",
+            annotations=[dict(
+                text="Run scraper with more salary-inclusive sources",
                 x=0.5, y=0.5, xref="paper", yref="paper",
-                showarrow=False, font=dict(color="#555", size=13))])
+                showarrow=False, font=dict(color="#555", size=13),
+            )],
+        )
     chart_skill_salary = json.dumps(fig_skill_sal, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # Remote vs onsite pie
     fig_remote = px.pie(
         values=[remote_jobs, onsite_jobs],
         names=["Remote", "Onsite/Hybrid"],
         title="Remote vs Onsite Jobs",
-        color_discrete_sequence=["#c9a84c", "#1D9E75"])
+        color_discrete_sequence=["#c9a84c", "#1D9E75"],
+    )
     fig_remote.update_layout(
         paper_bgcolor="#0d0d0d", plot_bgcolor="#1a1a1a",
-        font_color="#e8e6df", title_font_color="#c9a84c", showlegend=True)
+        font_color="#e8e6df", title_font_color="#c9a84c", showlegend=True,
+    )
     chart_remote = json.dumps(fig_remote, cls=plotly.utils.PlotlyJSONEncoder)
 
-    return render_template("dashboard.html",
+    return render_template(
+        "dashboard.html",
         total_jobs=total_jobs,
         skill_counts=skill_counts,
         avg_salary=avg_salary,
+        avg_salary_currency=avg_salary_currency,
+        salary_coverage=salary_coverage,
         location_counts=location_counts,
         last_updated=last_updated,
         jobs=jobs[:5],
@@ -229,10 +318,9 @@ def dashboard():
         chart_remote=chart_remote,
     )
 
-# ── Jobs listing ──────────────────────────
+
 @app.route("/jobs")
 def jobs_page():
-    # Accept both new (q/country/sort) and legacy (search/location/category) params
     q = (request.args.get("q") or request.args.get("search") or "")[:100].strip()
     country = (request.args.get("country") or request.args.get("location") or "")[:100].strip()
     category = (request.args.get("category") or "")[:100].strip()
@@ -243,12 +331,16 @@ def jobs_page():
         page = 1
     per_page = 20
 
-    result = supabase.table("jobs").select("*").order("scraped_at", desc=True).execute()
-    all_jobs = result.data or []
+    try:
+        result = supabase.table("jobs").select("*").order("scraped_at", desc=True).execute()
+        all_jobs = result.data or []
+    except Exception as e:
+        app.logger.error("jobs_page fetch failed: %s", e)
+        all_jobs = []
 
-    # Search: title, company, location, skills
     if q:
         q_lower = q.lower()
+
         def matches_search(job):
             title = str(job.get("title") or "").lower()
             company = str(job.get("company") or "").lower()
@@ -264,30 +356,15 @@ def jobs_page():
                 or q_lower in loc
                 or q_lower in skills_text
             )
+
         all_jobs = [j for j in all_jobs if matches_search(j)]
 
-    # Country / location filter
     if country:
-        c_lower = country.lower()
-        aliases = {
-            "uk": ["uk", "united kingdom", "england", "britain"],
-            "united kingdom": ["uk", "united kingdom", "england", "britain"],
-            "usa": ["usa", "united states", "us", "america"],
-            "united states": ["usa", "united states", "us", "america"],
-            "remote": ["remote", "worldwide", "anywhere"],
-            "remote worldwide": ["remote", "worldwide", "anywhere"],
-        }
-        terms = aliases.get(c_lower, [c_lower])
+        all_jobs = [
+            j for j in all_jobs
+            if matches_country(j.get("location"), country, j.get("country"))
+        ]
 
-        def matches_country(job):
-            loc = str(job.get("location") or "").lower()
-            ctry = str(job.get("country") or "").lower()
-            blob = f"{loc} {ctry}"
-            return any(t in blob for t in terms)
-
-        all_jobs = [j for j in all_jobs if matches_country(j)]
-
-    # Category filter (legacy)
     if category:
         cat_lower = category.lower()
         all_jobs = [
@@ -295,7 +372,6 @@ def jobs_page():
             if cat_lower in str(j.get("category") or "").lower()
         ]
 
-    # Sort
     if sort_by == "salary_high":
         all_jobs = sorted(
             all_jobs,
@@ -307,7 +383,6 @@ def jobs_page():
             all_jobs,
             key=lambda j: float(j.get("salary_min") or 0),
         )
-    # else newest — already ordered by scraped_at from Supabase; keep list order
 
     total_jobs = len(all_jobs)
     total_pages = max(1, (total_jobs + per_page - 1) // per_page)
@@ -325,7 +400,7 @@ def jobs_page():
         str(j.get("country") or "").strip()
         for j in (result.data or [])
         if j.get("country")
-    })
+    }) if "result" in dir() else []
     available_countries = list(dict.fromkeys(static_countries + from_data))
 
     return render_template(
@@ -344,63 +419,84 @@ def jobs_page():
         available_countries=available_countries,
     )
 
-# ── Job detail ────────────────────────────
+
 @app.route("/job/<job_id>")
 def job_detail(job_id):
-    result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    try:
+        result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    except Exception as e:
+        app.logger.error("job_detail failed: %s", e)
+        return render_template("404.html"), 404
     if not result.data:
         return render_template("404.html"), 404
     job = result.data[0]
     return render_template("job_detail.html", job=job)
 
-# ── Salary predictor ──────────────────────
+
+# Simple in-process model cache (avoids full retrain on every GET)
+_model_cache = {"model": None, "mlb": None, "avg": None, "currency": None, "n_jobs": 0}
+
+
 @app.route("/predict", methods=["GET", "POST"])
 @limiter.limit("30 per minute")
 def predict():
     predicted_salary = None
     selected_skills = []
     location = ""
+    prediction_currency = None
 
-    result = supabase.table("jobs").select("*").execute()
-    jobs = result.data
-    model, mlb, avg_sal = train_model(jobs)
+    try:
+        result = supabase.table("jobs").select("*").execute()
+        jobs = result.data or []
+    except Exception as e:
+        app.logger.error("predict fetch failed: %s", e)
+        jobs = []
+
+    # Retrain only when job count changes (or cache empty)
+    n = len(jobs)
+    if _model_cache["model"] is None or _model_cache["n_jobs"] != n:
+        model, mlb, avg_sal, currency_used = train_model(jobs)
+        _model_cache.update(
+            model=model, mlb=mlb, avg=avg_sal, currency=currency_used, n_jobs=n
+        )
+    else:
+        model = _model_cache["model"]
+        mlb = _model_cache["mlb"]
+        currency_used = _model_cache["currency"]
+
+    prediction_currency = currency_used
 
     if request.method == "POST":
         selected_skills = request.form.getlist("skills")
-        location = request.form.get("location", "")[:100]
+        location = (request.form.get("location") or "")[:100]
         if model and selected_skills:
-            predicted = predict_salary(model, mlb, selected_skills, location)
-            predicted_salary = predicted
-        elif not selected_skills:
+            predicted_salary = predict_salary(model, mlb, selected_skills, location)
+        else:
             predicted_salary = None
 
-    from scraper.clean_data import SKILLS_LIST
+    from scraper.skills import SKILLS_LIST
     return render_template(
         "predict.html",
         skills_list=SKILLS_LIST,
         available_skills=SKILLS_LIST,
         prediction=predicted_salary,
         predicted_salary=predicted_salary,
+        prediction_currency=prediction_currency,
         selected_skills=selected_skills,
         location=location,
     )
 
-# ── Debug route (remove after fixing) ────
-@app.route("/debug")
-def debug():
-    result = supabase.table("jobs").select("location").execute()
-    jobs = result.data
-    locations = [(j.get("location") or "") for j in jobs[:30]]
-    return "<br>".join(locations)
 
-# ── Error handlers ────────────────────────
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
+
 
 @app.errorhandler(429)
 def rate_limited(e):
     return render_template("404.html"), 429
 
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(debug=debug)

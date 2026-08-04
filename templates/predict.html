@@ -60,7 +60,7 @@
   {% if request.method == 'POST' %}
     {% if predicted_salary is defined and predicted_salary is not none and predicted_salary != '' %}
     <div class="prediction-box">
-      <div class="prediction-number">£{{ "{:,}".format(predicted_salary|int) }}</div>
+      <div class="prediction-number">{{ format_salary(predicted_salary, prediction_currency) if format_salary is defined else ("£{:,}".format(predicted_salary|int)) }}</div>
       <div class="prediction-label">Estimated Annual Base Salary Range</div>
     </div>
     {% else %}

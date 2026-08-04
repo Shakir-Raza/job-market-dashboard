@@ -39,7 +39,7 @@
         <p style="color: var(--muted); font-size: 0.95rem;">📍 {{ job.location }}</p>
       </div>
       <div style="font-size: 1.4rem; color: var(--accent); font-weight: 800; text-shadow: 0 0 10px var(--accent-glow);">
-        {% if job.salary_min %}£{{ "{:,}".format(job.salary_min|int) }}{% else %}Salary N/A{% endif %}
+        {% if job.salary_min %}{{ format_salary(job.salary_min, job.currency) if format_salary is defined else ("£{:,}".format(job.salary_min|int)) }}{% else %}Salary N/A{% endif %}
       </div>
     </div>
 
