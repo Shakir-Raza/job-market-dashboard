@@ -11,3 +11,6 @@ httpx==0.28.1
 scikit-learn==1.6.1
 flask-wtf==1.2.2
 flask-limiter==3.5.0
+
+# Testing (local)
+pytest==8.3.5

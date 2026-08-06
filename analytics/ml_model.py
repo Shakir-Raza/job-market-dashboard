@@ -19,16 +19,17 @@ from location_utils import normalize_country  # noqa: E402
 
 
 def _pick_primary_currency(jobs_with_salary):
-    """Choose the currency with the most salary samples (prefer GBP if tied-ish)."""
+    """Choose currency with the most samples; prefer South Asia (INR/PKR) for this product."""
     counts = Counter()
     for j in jobs_with_salary:
-        cur = (j.get("currency") or "GBP").upper()
+        cur = (j.get("currency") or "USD").upper()
         counts[cur] += 1
     if not counts:
-        return "GBP"
-    # Prefer GBP if it has at least 10 samples, else largest group
-    if counts.get("GBP", 0) >= 10:
-        return "GBP"
+        return "INR"
+    # Prefer regional currencies when they have meaningful sample size
+    for preferred in ("INR", "PKR", "BDT", "USD", "GBP"):
+        if counts.get(preferred, 0) >= 8:
+            return preferred
     return counts.most_common(1)[0][0]
 
 

@@ -3,186 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Salary Predictor - Job Market Analytics</title>
+  <title>Salary Predictor — Job Market Analytics</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
-
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
+  <a href="/" class="nav-logo">JM<span>D</span></a>
   <div class="nav-links">
     <a href="/">Dashboard</a>
     <a href="/jobs">All Jobs</a>
     <a href="/predict" class="active">Salary Predictor</a>
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
+    <button type="button" onclick="toggleTheme()" class="theme-toggle" title="Switch theme (Midnight / Daylight)" aria-label="Switch theme">◐</button>
   </div>
 </nav>
 
 <div class="container">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-
   <div class="page-header">
-    <h1>Salary Predictor</h1>
-    <p>Select your tech skills to estimate expected market compensation</p>
+    <h1>Salary predictor</h1>
+    <p>Estimate market compensation from skills and region. Auto / mixed uses US dollar (USD).</p>
   </div>
 
-  <form method="POST" action="/predict">
+  <form method="POST" action="/predict" id="predict-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <div class="section-label">Select Your Skills</div>
 
-    <!-- Skill search bar -->
-    <div class="filters-bar" style="margin-bottom: 12px;">
-      <input type="text" id="skill-search" placeholder="Search skills (e.g. Python, React, AWS)..."
-             autocomplete="off" style="flex: 1; min-width: 200px; width: 100%;">
+    <div class="predict-location">
+      <label for="location">Target region</label>
+      <select name="location" id="location">
+        <option value="" {% if not location %}selected{% endif %}>Auto / mixed (USD)</option>
+        <option value="United States" {% if location == 'United States' %}selected{% endif %}>United States (USD)</option>
+        <option value="United Kingdom" {% if location == 'United Kingdom' %}selected{% endif %}>United Kingdom (GBP)</option>
+        <option value="Pakistan" {% if location == 'Pakistan' %}selected{% endif %}>Pakistan (PKR)</option>
+        <option value="India" {% if location == 'India' %}selected{% endif %}>India (INR)</option>
+        <option value="Germany" {% if location == 'Germany' %}selected{% endif %}>Germany (EUR)</option>
+        <option value="Canada" {% if location == 'Canada' %}selected{% endif %}>Canada (CAD)</option>
+        <option value="Australia" {% if location == 'Australia' %}selected{% endif %}>Australia (AUD)</option>
+        <option value="Remote" {% if location == 'Remote' %}selected{% endif %}>Remote (USD)</option>
+      </select>
     </div>
-    <p id="skill-search-empty" style="display: none; color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">
-      No skills match your search.
-    </p>
+
+    <div class="section-label">Skills</div>
+    <p class="hint-text">Type to filter the list, or add any skill not listed (Enter or Add).</p>
+    <div class="custom-skill-bar">
+      <input type="text" id="custom-skill-input" placeholder="e.g. Python, Kotlin, Salesforce, Next.js…" autocomplete="off">
+      <button type="button" class="btn btn-secondary" id="add-skill-btn">Add</button>
+    </div>
+    <input type="hidden" name="custom_skills" id="custom-skills-field" value="{{ custom_skills|default('', true) }}">
+    <div class="custom-skill-chips" id="custom-skill-chips"></div>
 
     <div class="skills-grid" id="skills-grid">
-      {% set skill_list = available_skills if available_skills is defined and available_skills else (skills_list if skills_list is defined and skills_list else ['Python', 'SQL', 'JavaScript', 'React', 'Node.js', 'AWS', 'Docker', 'Kubernetes', 'Machine Learning', 'Data Engineering', 'TypeScript', 'PostgreSQL', 'Java', 'C++', 'Go', 'GCP', 'Azure', 'PyTorch', 'TensorFlow', 'Pandas']) %}
-
+      {% set skill_list = available_skills if available_skills is defined and available_skills else (skills_list if skills_list is defined and skills_list else []) %}
       {% for skill in skill_list %}
       <label class="skill-checkbox" data-skill="{{ skill|lower }}">
-        <input type="checkbox" name="skills" value="{{ skill }}" {% if selected_skills is defined and selected_skills and skill in selected_skills %}checked{% endif %}>
+        <input type="checkbox" name="skills" value="{{ skill }}"
+          {% if selected_skills is defined and selected_skills and skill in selected_skills %}checked{% endif %}>
         <span>{{ skill }}</span>
       </label>
       {% endfor %}
     </div>
 
-    <button type="submit" class="predict-btn">Calculate Estimated Salary</button>
+    <button type="submit" class="predict-btn">Estimate salary</button>
   </form>
 
   {% if request.method == 'POST' %}
-    {% if predicted_salary is defined and predicted_salary is not none and predicted_salary != '' %}
+    {% if predicted_salary is defined and predicted_salary is not none and predicted_salary != '' and predicted_salary != 0 %}
     <div class="prediction-box">
-      <div class="prediction-number">{{ format_salary(predicted_salary, prediction_currency) if format_salary is defined else ("£{:,}".format(predicted_salary|int)) }}</div>
-      <div class="prediction-label">Estimated Annual Base Salary Range</div>
+      <div class="prediction-number">{{ format_salary(predicted_salary, prediction_currency) }}</div>
+      {% if salary_low is defined and salary_high is defined and salary_low and salary_high %}
+      <div class="prediction-range">
+        Typical range {{ format_salary(salary_low, prediction_currency) }}
+        – {{ format_salary(salary_high, prediction_currency) }}
+      </div>
+      {% endif %}
+      <div class="prediction-label">Estimated annual base salary{% if prediction_currency %} ({{ prediction_currency }}){% endif %}</div>
+      <p class="prediction-note">
+        Auto / mixed is quoted in USD. Choose a country for local currency.
+        Sparse skill mixes are less reliable — treat this as a market signal.
+      </p>
     </div>
     {% else %}
     <div class="prediction-box">
-      <div class="prediction-number" style="font-size: 1.6rem;">Not Available</div>
-      <div class="prediction-label">Not enough data to estimate salary for the selected skills</div>
+      <div class="prediction-number" style="font-size: 1.4rem;">Not enough data</div>
+      <div class="prediction-label">
+        {% if not selected_skills and not custom_skills %}
+          Add at least one skill to estimate salary.
+        {% else %}
+          Not enough salary samples for this skill mix in the current dataset.
+        {% endif %}
+      </div>
+      <p class="prediction-note">Try broader skills (e.g. Python + SQL) or another region.</p>
     </div>
     {% endif %}
   {% endif %}
 </div>
 
-<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
+<footer>Job Market Analytics — Flask, Pandas, Plotly &amp; Supabase</footer>
 
 <script>
-  (function() {
-    const canvas = document.getElementById('hero-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-    let mouse = { x: width / 2, y: height / 2 };
-
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    });
-
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    });
-
-    class Particle {
-      constructor() { this.reset(); }
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.radius = Math.random() * 2 + 1;
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
-        this.alpha = Math.random() * 0.5 + 0.3;
-      }
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        if (this.x < 0 || this.x > width) this.vx *= -1;
-        if (this.y < 0 || this.y > height) this.vy *= -1;
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 150) {
-          this.x -= (dx / dist) * 1.5;
-          this.y -= (dy / dist) * 1.5;
-        }
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = document.body.classList.contains('light')
-          ? `rgba(184, 148, 42, ${this.alpha})`
-          : `rgba(201, 168, 76, ${this.alpha})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
+  (function () {
+    // Midnight (default) | Daylight (body.light)
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light');
     }
-
-    const particles = Array.from({ length: 65 }, () => new Particle());
-
-    function animate() {
-      ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = document.body.classList.contains('light')
-              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
-              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(animate);
-    }
-    animate();
   })();
+  function toggleTheme(){ var on = document.body.classList.toggle('light'); localStorage.setItem('theme', on ? 'light' : 'dark'); }
 
-  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
-  function toggleTheme() {
-    document.body.classList.toggle('light');
-    localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
-  }
-
-  // Skill search filter
-  (function() {
-    const input = document.getElementById('skill-search');
+  (function () {
+    const input = document.getElementById('custom-skill-input');
+    const btn = document.getElementById('add-skill-btn');
+    const chips = document.getElementById('custom-skill-chips');
+    const field = document.getElementById('custom-skills-field');
     const grid = document.getElementById('skills-grid');
-    const emptyMsg = document.getElementById('skill-search-empty');
-    if (!input || !grid) return;
+    if (!input || !chips || !field) return;
 
-    input.addEventListener('input', function() {
-      const q = this.value.trim().toLowerCase();
-      const labels = grid.querySelectorAll('.skill-checkbox');
-      let visible = 0;
-      labels.forEach(function(label) {
-        const name = label.getAttribute('data-skill') || '';
-        const show = !q || name.indexOf(q) !== -1;
-        label.style.display = show ? '' : 'none';
-        if (show) visible++;
+    let skills = (field.value || '').split(',').map(s => s.trim()).filter(Boolean);
+
+    function render() {
+      chips.innerHTML = '';
+      skills.forEach(function (s, i) {
+        const el = document.createElement('span');
+        el.className = 'chip';
+        el.innerHTML = s + ' <button type="button" aria-label="Remove">&times;</button>';
+        el.querySelector('button').addEventListener('click', function () {
+          skills.splice(i, 1);
+          render();
+        });
+        chips.appendChild(el);
       });
-      if (emptyMsg) emptyMsg.style.display = visible === 0 ? 'block' : 'none';
+      field.value = skills.join(', ');
+    }
+
+    function add() {
+      const v = (input.value || '').trim();
+      if (!v) return;
+      if (!skills.some(s => s.toLowerCase() === v.toLowerCase())) skills.push(v);
+      input.value = '';
+      render();
+      if (grid) {
+        grid.querySelectorAll('.skill-checkbox').forEach(function (label) {
+          label.style.display = '';
+        });
+      }
+    }
+
+    input.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      if (!grid) return;
+      grid.querySelectorAll('.skill-checkbox').forEach(function (label) {
+        const name = label.getAttribute('data-skill') || '';
+        label.style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+      });
     });
+
+    btn.addEventListener('click', add);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); add(); }
+    });
+    render();
   })();
 </script>
 

@@ -3,61 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>All Jobs - Job Market Analytics</title>
+  <title>All Jobs — Job Market Analytics</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
-
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
+  <a href="/" class="nav-logo">JM<span>D</span></a>
   <div class="nav-links">
     <a href="/">Dashboard</a>
     <a href="/jobs" class="active">All Jobs <span class="nav-badge">{{ total_jobs if total_jobs is defined else (jobs|length) }}</span></a>
     <a href="/predict">Salary Predictor</a>
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
+    <button type="button" onclick="toggleTheme()" class="theme-toggle" title="Switch theme (Midnight / Daylight)" aria-label="Switch theme">◐</button>
   </div>
 </nav>
 
 <div class="container">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-
-  <div class="page-header">
-    <h1>All Job Listings</h1>
-    <p>Explore, filter, and analyze live market opportunities</p>
+  <div class="page-hero">
+    <div class="page-header">
+      <h1>All job listings</h1>
+      <p>Search, filter, and browse live market opportunities</p>
+    </div>
   </div>
 
-  <!-- Filters Bar — GET so params show in URL and work with pagination -->
   <form method="GET" action="/jobs" class="filters-bar">
-    <input type="text" name="q" placeholder="Search title, skills or company..."
-           value="{{ query|default('', true) }}" style="flex: 2; min-width: 200px;">
+    <input type="text" name="q" placeholder="Search title, skills, or company…"
+           value="{{ query|default('', true) }}" style="flex: 2; min-width: 180px;">
 
-    <!-- Full country list (override via available_countries from Flask if provided) -->
     {% set countries = available_countries if available_countries is defined and available_countries else [
-      'Pakistan', 'India', 'Bangladesh', 'United Kingdom', 'UK', 'USA', 'United States',
-      'Canada', 'Australia', 'Germany', 'Remote', 'Remote Worldwide'
+      'Pakistan', 'India', 'Bangladesh', 'United Kingdom', 'United States',
+      'Canada', 'Australia', 'Germany', 'Remote'
     ] %}
-    <select name="country">
-      <option value="">All Countries</option>
+    <select name="country" aria-label="Country">
+      <option value="">All countries</option>
       {% for c in countries %}
       <option value="{{ c }}" {% if selected_country is defined and selected_country == c %}selected{% endif %}>{{ c }}</option>
       {% endfor %}
     </select>
 
-    <select name="sort">
-      <option value="newest" {% if sort_by is defined and sort_by == 'newest' %}selected{% endif %}>Newest First</option>
-      <option value="salary_high" {% if sort_by is defined and sort_by == 'salary_high' %}selected{% endif %}>Highest Salary</option>
-      <option value="salary_low" {% if sort_by is defined and sort_by == 'salary_low' %}selected{% endif %}>Lowest Salary</option>
+    <select name="job_type" aria-label="Job type">
+      <option value="">All types</option>
+      <option value="remote" {% if job_type is defined and job_type == 'remote' %}selected{% endif %}>Remote</option>
+      <option value="onsite" {% if job_type is defined and job_type == 'onsite' %}selected{% endif %}>Onsite</option>
+      <option value="hybrid" {% if job_type is defined and job_type == 'hybrid' %}selected{% endif %}>Hybrid</option>
+    </select>
+
+    <select name="sort" aria-label="Sort">
+      <option value="newest" {% if sort_by is defined and sort_by == 'newest' %}selected{% endif %}>Newest first</option>
+      <option value="salary_high" {% if sort_by is defined and sort_by == 'salary_high' %}selected{% endif %}>Highest salary</option>
+      <option value="salary_low" {% if sort_by is defined and sort_by == 'salary_low' %}selected{% endif %}>Lowest salary</option>
     </select>
 
     <button type="submit" class="btn btn-primary">Search</button>
     <a href="/jobs" class="btn btn-secondary">Reset</a>
   </form>
 
-  <!-- Quick filter chips — preserve sort when possible -->
   <div class="quick-filters">
     <a href="/jobs?q=python{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
        class="qbtn {% if query is defined and query|lower == 'python' %}active{% endif %}">Python</a>
@@ -69,169 +69,91 @@
        class="qbtn {% if query is defined and query|lower == 'javascript' %}active{% endif %}">JavaScript</a>
     <a href="/jobs?q=sql{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
        class="qbtn {% if query is defined and query|lower == 'sql' %}active{% endif %}">SQL</a>
-    <a href="/jobs?country=Remote{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
-       class="qbtn {% if selected_country is defined and 'remote' in selected_country|lower %}active{% endif %}">Remote</a>
+    <a href="/jobs?job_type=remote{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if job_type is defined and job_type == 'remote' %}active{% endif %}">Remote</a>
+    <a href="/jobs?job_type=onsite{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
+       class="qbtn {% if job_type is defined and job_type == 'onsite' %}active{% endif %}">Onsite</a>
     <a href="/jobs?country=Pakistan{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
        class="qbtn {% if selected_country is defined and selected_country == 'Pakistan' %}active{% endif %}">Pakistan</a>
     <a href="/jobs?country=India{% if sort_by is defined and sort_by %}&sort={{ sort_by }}{% endif %}"
        class="qbtn {% if selected_country is defined and selected_country == 'India' %}active{% endif %}">India</a>
     <a href="/jobs?sort=salary_high{% if query is defined and query %}&q={{ query }}{% endif %}{% if selected_country is defined and selected_country %}&country={{ selected_country }}{% endif %}"
-       class="qbtn {% if sort_by is defined and sort_by == 'salary_high' %}active{% endif %}">High Salary</a>
+       class="qbtn {% if sort_by is defined and sort_by == 'salary_high' %}active{% endif %}">High salary</a>
   </div>
 
   <div class="job-count">
-    Showing {{ jobs|length }}{% if total_jobs is defined %} of {{ total_jobs }}{% endif %} jobs
-    {% if query %}<span style="color: var(--accent);"> · “{{ query }}”</span>{% endif %}
-    {% if selected_country %}<span style="color: var(--accent);"> · {{ selected_country }}</span>{% endif %}
+    Showing <strong>{{ jobs|length }}</strong>{% if total_jobs is defined %} of <strong>{{ total_jobs }}</strong>{% endif %} jobs
+    {% if query %} · “{{ query }}”{% endif %}
+    {% if selected_country %} · {{ selected_country }}{% endif %}
   </div>
 
-  <!-- Jobs Grid -->
   <div class="jobs-grid">
     {% for job in jobs %}
     <div class="job-card">
       <div class="job-card-header">
         <div class="job-title">
           {% if job.id is defined %}
-            <a href="/job/{{ job.id }}" style="color: var(--text); text-decoration: none;">{{ job.title }}</a>
+          <a href="/job/{{ job.id }}">{{ job.title }}</a>
           {% else %}
-            {{ job.title }}
+          {{ job.title }}
           {% endif %}
         </div>
         <div class="job-salary">
           {% if job.salary_min is defined and job.salary_min is not none and job.salary_min != '' %}
-            {{ format_salary(job.salary_min, job.currency) if format_salary is defined else ("£{:,}".format(job.salary_min|int)) }}
+            {{ format_salary(job.salary_min, job.currency, job) }}
           {% else %}
             N/A
           {% endif %}
         </div>
       </div>
-      <div class="job-meta">{{ job.company }} — {{ job.location }}{% if job.country %} ({{ job.country }}){% endif %}</div>
-
+      <div class="job-meta">
+        {{ job.company }} — {{ job.location }}{% if job.country %} ({{ job.country }}){% endif %}
+      </div>
       <div class="job-skills">
-        {% for skill in (job.skills or []) %}
+        {% for skill in (job.skills or [])[:10] %}
         <span class="skill-tag">{{ skill }}</span>
         {% endfor %}
       </div>
-
-      <div style="display: flex; gap: 12px; margin-top: 16px; align-items: center;">
+      <div class="job-actions">
         {% if job.id is defined %}
-        <a href="/job/{{ job.id }}" class="job-link">View Details →</a>
+        <a href="/job/{{ job.id }}" class="job-link">Details →</a>
         {% endif %}
         {% if job.source_url %}
-        <a href="{{ job.source_url }}" target="_blank" class="job-link" style="color: var(--muted); font-size: 0.85rem;">Source ↗</a>
+        <a href="{{ job.source_url }}" target="_blank" rel="noopener" class="job-link-secondary">Source ↗</a>
         {% endif %}
       </div>
     </div>
     {% else %}
-    <p style="color: var(--muted);">No jobs found matching your criteria. Try clearing filters.</p>
+    <div class="empty-state">
+      <p>No jobs match your filters.</p>
+      <a href="/jobs" class="btn btn-secondary">Clear filters</a>
+    </div>
     {% endfor %}
   </div>
 
-  <!-- Pagination — keeps q, country, sort -->
   {% set pages_count = total_pages if total_pages is defined and total_pages > 1 else 1 %}
   {% if pages_count > 1 %}
   <div class="pagination-container">
-    {% for page in range(1, pages_count + 1) %}
-      <a href="/jobs?page={{ page }}&q={{ query|default('', true)|urlencode }}&country={{ selected_country|default('', true)|urlencode }}&sort={{ sort_by|default('newest', true) }}"
-         class="page-box {% if current_page is defined and page == current_page %}active{% elif current_page is not defined and page == 1 %}active{% endif %}">
-        {{ page }}
+    {% set nums = page_numbers if page_numbers is defined else range(1, pages_count + 1)|list %}
+    {% for pnum in nums %}
+      {% if pnum is none %}
+        <span class="page-box dots">…</span>
+      {% else %}
+      <a href="/jobs?page={{ pnum }}&q={{ query|default('', true)|urlencode }}&country={{ selected_country|default('', true)|urlencode }}&job_type={{ job_type|default('', true)|urlencode }}&sort={{ sort_by|default('newest', true) }}"
+         class="page-box {% if current_page is defined and pnum == current_page %}active{% elif current_page is not defined and pnum == 1 %}active{% endif %}">
+        {{ pnum }}
       </a>
+      {% endif %}
     {% endfor %}
   </div>
   {% endif %}
 </div>
 
-<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
+<footer>Job Market Analytics — Flask, Pandas, Plotly &amp; Supabase</footer>
 
 <script>
-  (function() {
-    const canvas = document.getElementById('hero-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-    let mouse = { x: width / 2, y: height / 2 };
-
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    });
-
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    });
-
-    class Particle {
-      constructor() { this.reset(); }
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.radius = Math.random() * 2 + 1;
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
-        this.alpha = Math.random() * 0.5 + 0.3;
-      }
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        if (this.x < 0 || this.x > width) this.vx *= -1;
-        if (this.y < 0 || this.y > height) this.vy *= -1;
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 150) {
-          this.x -= (dx / dist) * 1.5;
-          this.y -= (dy / dist) * 1.5;
-        }
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = document.body.classList.contains('light')
-          ? `rgba(184, 148, 42, ${this.alpha})`
-          : `rgba(201, 168, 76, ${this.alpha})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    const particles = Array.from({ length: 65 }, () => new Particle());
-
-    function animate() {
-      ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = document.body.classList.contains('light')
-              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
-              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(animate);
-    }
-    animate();
-  })();
-
-  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
-  function toggleTheme() {
-    document.body.classList.toggle('light');
-    localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
-  }
+  (function(){ if (localStorage.getItem('theme') === 'light') document.body.classList.add('light'); })();(function(){ if(localStorage.getItem('theme')==='light') document.body.classList.add('light'); })();
+  function toggleTheme(){ var on = document.body.classList.toggle('light'); localStorage.setItem('theme', on ? 'light' : 'dark'); }
 </script>
 
 </body>

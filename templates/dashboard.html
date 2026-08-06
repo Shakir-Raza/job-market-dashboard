@@ -9,50 +9,81 @@
 </head>
 <body>
 
-<!-- High Dynamic Interactive Mouse-Particle Engine Canvas -->
-<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
-
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
+  <a href="/" class="nav-logo">JM<span>D</span></a>
   <div class="nav-links">
     <a href="/" class="active">Dashboard</a>
     <a href="/jobs">All Jobs <span class="nav-badge">{{ nav_job_count }}</span></a>
     <a href="/predict">Salary Predictor</a>
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
+    <button type="button" onclick="toggleTheme()" class="theme-toggle" title="Switch theme (Midnight / Daylight)" aria-label="Switch theme">◐</button>
   </div>
 </nav>
 
-<div class="container">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-
-  <div class="page-header">
-    <h1>Job Market Analytics</h1>
-    <p>Live remote jobs for Pakistan, India &amp; Bangladesh — updated weekly
-      {% if last_updated %}
-      <span style="color: var(--muted); font-size: 0.78rem;">| Last updated: {{ last_updated }}</span>
-      {% endif %}
-    </p>
+<section class="hero" aria-label="Introduction">
+  <div class="hero-media">
+    <img
+      class="hero-img hero-img-dark"
+      src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80"
+      srcset="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=75 900w,
+              https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80 1600w"
+      sizes="100vw"
+      alt="Market analytics and career data"
+      width="1600"
+      height="900"
+      fetchpriority="high"
+    >
+    <img
+      class="hero-img hero-img-light"
+      src="https://images.unsplash.com/photo-1560264280-88b68371db39?auto=format&fit=crop&w=1600&q=80"
+      srcset="https://images.unsplash.com/photo-1560264280-88b68371db39?auto=format&fit=crop&w=900&q=75 900w,
+              https://images.unsplash.com/photo-1560264280-88b68371db39?auto=format&fit=crop&w=1600&q=80 1600w"
+      sizes="100vw"
+      alt="Bright open office, daylight"
+      width="1600"
+      height="900"
+    >
   </div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-kicker">Live market data</div>
+    <h1>See what the job market is paying right now</h1>
+    <p class="hero-lead">
+      Roles from multiple sources, cleaned and charted — skills, regions, and salaries in one place.
+    </p>
+    <div class="hero-actions">
+      <a href="/jobs" class="btn btn-primary">Browse jobs</a>
+      <a href="/predict" class="btn btn-secondary">Estimate salary</a>
+    </div>
+    {% if last_updated %}
+    <p class="hero-meta">Data updated {{ last_updated }} · {{ total_jobs }} roles tracked</p>
+    {% else %}
+    <p class="hero-meta">{{ total_jobs }} roles tracked</p>
+    {% endif %}
+  </div>
+</section>
 
+<div class="container">
   <div class="section-label">Overview</div>
   <div class="stats-grid">
     <div class="stat-card">
       <div class="number">{{ total_jobs }}</div>
-      <div class="label">Jobs Tracked</div>
+      <div class="label">Jobs tracked</div>
     </div>
     <div class="stat-card">
-      <div class="number">{% if avg_salary and avg_salary > 0 %}{{ format_salary(avg_salary, avg_salary_currency) if format_salary is defined else ("£{:,}".format(avg_salary)) }}{% else %}—{% endif %}</div>
-      <div class="label">Avg Salary</div>
+      <div class="number">
+        {% if avg_salary and avg_salary > 0 %}
+          {{ format_salary(avg_salary, avg_salary_currency) if format_salary is defined else ("£{:,}".format(avg_salary)) }}
+        {% else %}—{% endif %}
+      </div>
+      <div class="label">Avg salary</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ skill_counts[0][0].title() if skill_counts else "N/A" }}</div>
-      <div class="label">Top Skill</div>
+      <div class="label">Top skill</div>
     </div>
     <div class="stat-card">
-      <div class="number">{{ location_counts[0][0].split(",")[0] if location_counts else "N/A" }}</div>
-      <div class="label">Top Location</div>
+      <div class="number">{{ top_location_label if top_location_label is defined else (location_counts[0][0].split(",")[0] if location_counts else "N/A") }}</div>
+      <div class="label">Top location</div>
     </div>
   </div>
 
@@ -62,187 +93,103 @@
     <div class="chart-box" id="chart-location"></div>
   </div>
   <div class="chart-full" id="chart-salary"></div>
-  <div class="chart-full" id="chart-category" style="margin-bottom: 16px;"></div>
-  <div class="chart-full" id="chart-skill-salary" style="margin-bottom: 16px;"></div>
-  <div class="chart-full" id="chart-remote" style="margin-bottom: 16px;"></div>
+  <div class="chart-full" id="chart-category"></div>
+  <div class="chart-full" id="chart-skill-salary"></div>
+  <div class="chart-full" id="chart-remote"></div>
 
-  <div class="section-label" style="margin-top: 32px;">Jobs by Region</div>
+  <div class="section-label" style="margin-top: 28px;">Jobs by region</div>
   <div class="stats-grid">
     <div class="stat-card">
       <div class="number">{{ pakistan_jobs }}</div>
-      <div class="label">🇵🇰 Pakistan</div>
+      <div class="label">Pakistan</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ india_jobs }}</div>
-      <div class="label">🇮🇳 India</div>
+      <div class="label">India</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ bangladesh_jobs }}</div>
-      <div class="label">🇧🇩 Bangladesh</div>
+      <div class="label">Bangladesh</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ uk_jobs }}</div>
-      <div class="label">🇬🇧 United Kingdom</div>
+      <div class="label">United Kingdom</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ canada_jobs }}</div>
-      <div class="label">🇨🇦 Canada</div>
+      <div class="label">Canada</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ australia_jobs }}</div>
-      <div class="label">🇦🇺 Australia</div>
+      <div class="label">Australia</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ germany_jobs }}</div>
-      <div class="label">🇩🇪 Germany</div>
+      <div class="label">Germany</div>
     </div>
     <div class="stat-card">
       <div class="number">{{ remote_jobs }}</div>
-      <div class="label">🌍 Remote Worldwide</div>
+      <div class="label">Remote</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ onsite_jobs if onsite_jobs is defined else 0 }}</div>
+      <div class="label">Onsite / hybrid</div>
     </div>
   </div>
 
-  <div class="section-label" style="margin-top: 32px;">Recent Job Postings</div>
+  <div class="section-label" style="margin-top: 28px;">Recent postings</div>
   <div class="jobs-grid">
-    {% for job in jobs %}
+    {% for job in jobs[:12] %}
     <div class="job-card">
       <div class="job-card-header">
-        <div class="job-title">{{ job.title }}</div>
+        <div class="job-title">
+          {% if job.id is defined %}
+          <a href="/job/{{ job.id }}">{{ job.title }}</a>
+          {% else %}
+          {{ job.title }}
+          {% endif %}
+        </div>
         <div class="job-salary">
-          {% if job.salary_min %}{{ format_salary(job.salary_min, job.currency) if format_salary is defined else ("£{:,}".format(job.salary_min|int)) }}{% else %}N/A{% endif %}
+          {% if job.salary_min %}
+            {{ format_salary(job.salary_min, job.currency, job) }}
+          {% else %}N/A{% endif %}
         </div>
       </div>
       <div class="job-meta">{{ job.company }} — {{ job.location }}</div>
       <div class="job-skills">
-        {% for skill in (job.skills or []) %}
+        {% for skill in (job.skills or [])[:8] %}
         <span class="skill-tag">{{ skill }}</span>
         {% endfor %}
       </div>
-      <a href="{{ job.source_url }}" target="_blank" class="job-link">View Job →</a>
+      <div class="job-actions">
+        {% if job.id is defined %}
+        <a href="/job/{{ job.id }}" class="job-link">Details →</a>
+        {% endif %}
+        {% if job.source_url %}
+        <a href="{{ job.source_url }}" target="_blank" rel="noopener" class="job-link-secondary">Source ↗</a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <p>No jobs loaded yet. Run the scraper to populate the database.</p>
     </div>
     {% endfor %}
   </div>
 </div>
 
-<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
+<footer>Job Market Analytics — Flask, Pandas, Plotly &amp; Supabase</footer>
 
 <script>
-  // High-Motion Dynamic Interactive Particle Engine
-  (function() {
-    const canvas = document.getElementById('hero-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+  (function(){ if (localStorage.getItem('theme') === 'light') document.body.classList.add('light'); })();
+  (function(){ if(localStorage.getItem('theme')==='light') document.body.classList.add('light'); })();
+  function toggleTheme(){ var on = document.body.classList.toggle('light'); localStorage.setItem('theme', on ? 'light' : 'dark'); }
 
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-
-    let mouse = { x: width / 2, y: height / 2 };
-
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    });
-
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    });
-
-    class Particle {
-      constructor() {
-        this.reset();
-      }
-
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.radius = Math.random() * 2 + 1;
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
-        this.alpha = Math.random() * 0.5 + 0.3;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-
-        if (this.x < 0 || this.x > width) this.vx *= -1;
-        if (this.y < 0 || this.y > height) this.vy *= -1;
-
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 150) {
-          this.x -= (dx / dist) * 1.5;
-          this.y -= (dy / dist) * 1.5;
-        }
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = document.body.classList.contains('light')
-          ? `rgba(184, 148, 42, ${this.alpha})`
-          : `rgba(201, 168, 76, ${this.alpha})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    const particles = Array.from({ length: 65 }, () => new Particle());
-
-    function animate() {
-      ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 140) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = document.body.classList.contains('light')
-              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
-              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(animate);
-    }
-    animate();
-  })();
-
-  // Theme Toggling Logic
-  if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light');
-  }
-
-  function toggleTheme() {
-    document.body.classList.toggle('light');
-    localStorage.setItem('theme',
-      document.body.classList.contains('light') ? 'light' : 'dark'
-    );
-  }
-
-  // Plotly Charts Setup — mobile-aware
   var isMobile = window.innerWidth < 768;
-
-  var mobileOverride = isMobile ? {
-    font: { size: 9 },
-    margin: { l: 70, r: 8, t: 35, b: 50 },
-    title: { font: { size: 11 } },
-    xaxis: { tickfont: { size: 8 } },
-    yaxis: { tickfont: { size: 8 } },
-  } : {};
+  var isLight = document.body.classList.contains('light');
+  var textColor = isLight ? '#18181b' : '#fafafa';
+  var mutedColor = isLight ? '#71717a' : '#a1a1aa';
+  var gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
 
   var config = {
     displayModeBar: false,
@@ -253,24 +200,40 @@
   };
 
   function plotChart(id, chartData) {
-    var layout = Object.assign({}, chartData.layout, mobileOverride);
-    layout.paper_bgcolor = "rgba(0,0,0,0)";
-    layout.plot_bgcolor = "rgba(0,0,0,0)";
+    var layout = Object.assign({}, chartData.layout || {});
+    layout.paper_bgcolor = 'rgba(0,0,0,0)';
+    layout.plot_bgcolor = 'rgba(0,0,0,0)';
     layout.dragmode = false;
     layout.autosize = true;
-    Plotly.newPlot(id, chartData.data, layout, config);
+    layout.font = Object.assign(
+      { family: "Inter, system-ui, sans-serif", color: textColor, size: isMobile ? 10 : 12 },
+      layout.font || {}
+    );
+    if (layout.title && typeof layout.title === 'object') {
+      layout.title.font = Object.assign({ color: textColor, size: isMobile ? 12 : 14 }, layout.title.font || {});
+    }
+    if (layout.xaxis) layout.xaxis.gridcolor = gridColor;
+    if (layout.yaxis) layout.yaxis.gridcolor = gridColor;
+    if (isMobile) {
+      layout.margin = Object.assign({}, layout.margin || {}, {
+        l: 16, r: 12, t: 48, b: Math.max((layout.margin && layout.margin.b) || 0, 64)
+      });
+    }
+    Plotly.newPlot(id, chartData.data, layout, config).then(function () {
+      Plotly.Plots.resize(document.getElementById(id));
+    });
   }
 
-  plotChart('chart-skills',      {{ chart_skills | safe }});
-  plotChart('chart-location',    {{ chart_location | safe }});
-  plotChart('chart-salary',      {{ chart_salary | safe }});
-  plotChart('chart-category',    {{ chart_category | safe }});
-  plotChart('chart-skill-salary',{{ chart_skill_salary | safe }});
-  plotChart('chart-remote',      {{ chart_remote | safe }});
+  plotChart('chart-skills', {{ chart_skills | safe }});
+  plotChart('chart-location', {{ chart_location | safe }});
+  plotChart('chart-salary', {{ chart_salary | safe }});
+  plotChart('chart-category', {{ chart_category | safe }});
+  plotChart('chart-skill-salary', {{ chart_skill_salary | safe }});
+  plotChart('chart-remote', {{ chart_remote | safe }});
 
-  window.addEventListener('resize', function() {
-    ['chart-skills','chart-location','chart-salary',
-    'chart-category','chart-skill-salary','chart-remote'].forEach(function(id) {
+  window.addEventListener('resize', function () {
+    ['chart-skills', 'chart-location', 'chart-salary',
+     'chart-category', 'chart-skill-salary', 'chart-remote'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) Plotly.Plots.resize(el);
     });

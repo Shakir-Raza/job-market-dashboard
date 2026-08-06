@@ -1,90 +1,103 @@
 # Job Market Dashboard
 
-End-to-end job market intelligence platform: ingests live job postings, cleans and structures
-them, stores them in a production database, and serves both analytics and a live salary
-prediction model through a Flask web app.
+End-to-end job market intelligence: live postings from multiple sources, cleaned and stored in Postgres, served as analytics and a salary predictor through a Flask app.
 
 **Live app:** https://job-market-dashboard-ton7.onrender.com/
 
 ---
 
-## Problem Statement
+## Problem
 
-Job postings are unstructured, scattered across sources, and don't tell you what a given skill
-set is actually worth in the current market. This project answers a concrete question: given a
-set of skills and a location, what salary should you expect — based on real, current postings,
-not a static dataset.
+Job postings are scattered and unstructured. It's hard to answer: *given these skills and this region, what salary range is realistic right now?*
 
 ## Solution
 
-A pipeline that pulls live postings via the Adzuna API, cleans and normalizes them, extracts
-structured skill data from unstructured text, stores everything in Postgres, and serves both an
-analytics dashboard and an interactive salary predictor trained on the current data.
+1. Ingest live roles (Adzuna, Himalayas, Remotive, optional Jooble)
+2. Normalize fields, extract skills, map locations
+3. Store deduplicated rows in Supabase (PostgreSQL)
+4. Serve dashboard, listings, and a ridge-regression salary estimate
 
 ## Architecture
 
 ![Architecture Diagram](architecture.png)
 
-- **Ingestion**: `scraper/fetch_jobs.py` calls the Adzuna REST API across 7 countries and 15+
-  role/location query combinations.
-- **Cleaning**: `scraper/clean_data.py` extracts skills from raw job descriptions by matching
-  against a 32-skill taxonomy, and normalizes salary and location fields.
-- **Storage**: `scraper/store_jobs.py` writes to a dedicated Supabase (PostgreSQL) project,
-  deduplicating on `source_url` before insert. Row-Level Security is deliberately disabled,
-  since the dataset is public job-market data with no per-user access requirement.
-- **Serving**: `app.py` is a Flask application with three routes — a dashboard, a filterable
-  job listing page, and an interactive salary predictor.
+```
+app.py                 # Flask routes only
+services/
+  db.py                # Supabase client + TTL cache
+  cache.py             # In-process cache
+  dashboard.py         # Aggregates + Plotly charts
+  formatters.py        # Salary display
+analytics/ml_model.py  # Ridge salary model
+scraper/               # Fetch / clean / store pipeline
+```
 
-## Tech Stack
-
-Python, Flask, Supabase (PostgreSQL), scikit-learn, Pandas, Plotly, Adzuna API, Gunicorn, Render
+| Layer | Tech |
+|--------|------|
+| Ingestion | Adzuna, Himalayas, Remotive, Jooble |
+| Cleaning | Pandas, skill taxonomy, location helpers |
+| Storage | Supabase (PostgreSQL) |
+| App | Flask + Gunicorn |
+| Charts | Plotly |
+| ML | scikit-learn (Ridge) |
+| Deploy | Render |
+| CI scrape | GitHub Actions (weekly) |
 
 ## Features
 
-- Live data ingestion from a real jobs API, not a static/Kaggle dataset
-- Skill extraction from unstructured text against a defined taxonomy
-- Server-side aggregate analytics (top skills, top locations, average salary)
-- Three interactive Plotly visualizations (skill demand, hiring locations, salary distribution)
-- Filterable job listings page (server-side, case-insensitive filtering by category/location)
-- Ridge regression salary predictor (scikit-learn), retrained live from current database
-  contents on each run, served through an interactive form
-- Deployed to production behind Gunicorn
+- Multi-source live job data
+- Dashboard: region, skills, salary charts
+- Jobs: search, filters, sort, pagination
+- Job detail + original apply link
+- Salary predictor with optional region and ±15% range
+- Dark / light theme
+- Rate limiting + CSRF
+- In-process TTL cache for job list / counts
+- Health endpoints (`/health`, `/healthz`)
 
-## Screenshots
-
-![Dashboard](screenshots/1.png)
-![Job Listings](screenshots/2.png)
-![Prediction Form](screenshots/3.png)
-
-## Installation
+## Local setup
 
 ```bash
 git clone https://github.com/Shakir-Raza/job-market-dashboard.git
 cd job-market-dashboard
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-```
-
-You'll need your own Supabase and Adzuna API credentials set up locally to run this (not
-included here for security reasons).
-
-## Usage
-
-```bash
-# Run the scraper to populate the database
-python scraper/fetch_jobs.py
-
-# Run the Flask app
+cp .env.example .env   # fill keys
+python scraper/store_jobs.py
 python app.py
 ```
 
-Visit `http://localhost:5000` to view the dashboard.
+## Tests
 
-## Future Improvements
+```bash
+PYTHONPATH=. pytest tests/ -q
+```
 
-- Add scheduled/automated scraping (e.g. via a cron job or GitHub Actions) instead of manual runs
-- Expand the skill taxonomy beyond 32 keyword-matched terms to a proper NLP-based extraction
-- Add caching for the analytics queries to reduce redundant computation on each dashboard load
-- Add tests for the cleaning and dedup logic
+## Scheduled scraping
 
+`.github/workflows/scrape.yml` runs weekly (and on manual dispatch).  
+Add repository secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ADZUNA_APP_ID`, `ADZUNA_API_KEY`, optional `JOOBLE_API_KEY`.
+
+## Environment
+
+See `.env.example`:
+
+- `ADZUNA_APP_ID` / `ADZUNA_API_KEY`
+- `SUPABASE_URL` / `SUPABASE_KEY` / `SUPABASE_SERVICE_KEY`
+- `SECRET_KEY`
+- Optional: `JOOBLE_API_KEY`, `CACHE_JOBS_TTL`, `CACHE_COUNT_TTL`
+
+## UI
+
+Restrained product style: neutral surfaces, teal accent, Inter. No glass, particles, or gold gradients.
+
+## Future work
+
+- Stronger NLP skill extraction
+- Shared Redis cache for multi-instance deploys
+- More predictor features (seniority signals)
+
+## License
+
+Personal / portfolio project.

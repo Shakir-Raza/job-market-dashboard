@@ -3,179 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ job.title }} - Job Market Analytics</title>
+  <title>{{ job.title }} — Job Market Analytics</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-<!-- Interactive Particle Background Canvas -->
-<canvas id="hero-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;"></canvas>
-
 <nav>
-  <a href="/" class="nav-logo">JM<span style="color:var(--text); -webkit-text-fill-color: var(--text);">D</span></a>
+  <a href="/" class="nav-logo">JM<span>D</span></a>
   <div class="nav-links">
     <a href="/">Dashboard</a>
-    <a href="/jobs">All Jobs</a>
+    <a href="/jobs" class="active">All Jobs</a>
     <a href="/predict">Salary Predictor</a>
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle dark/light mode">🌓</button>
+    <button type="button" onclick="toggleTheme()" class="theme-toggle" title="Switch theme (Midnight / Daylight)" aria-label="Switch theme">◐</button>
   </div>
 </nav>
 
 <div class="container">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
+  <a href="/jobs" class="back-link">← Back to all jobs</a>
 
   <div class="page-header">
-    <a href="/jobs" style="color: var(--accent); text-decoration: none; font-size: 0.85rem; font-weight: 700;">← Back to All Jobs</a>
-    <h1 style="margin-top: 12px;">{{ job.title }}</h1>
-    <p>{{ job.company }} — {{ job.location }}</p>
+    <h1>{{ job.title }}</h1>
+    <p>{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}</p>
   </div>
 
-  <div class="job-card" style="padding: 32px; animation: floatCard 8s ease-in-out infinite alternate;">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div class="detail-card">
+    <div class="detail-top">
       <div>
-        <h2 style="font-size: 1.5rem; color: var(--text);">{{ job.company }}</h2>
-        <p style="color: var(--muted); font-size: 0.95rem;">📍 {{ job.location }}</p>
+        <h2>{{ job.company }}</h2>
+        <p class="loc">
+          {% if job.location %}{{ job.location }}{% endif %}
+          {% if job.country %} · {{ job.country }}{% endif %}
+          {% if job.job_type %} · {{ job.job_type }}{% endif %}
+          {% if job.source %} · via {{ job.source }}{% endif %}
+        </p>
       </div>
-      <div style="font-size: 1.4rem; color: var(--accent); font-weight: 800; text-shadow: 0 0 10px var(--accent-glow);">
-        {% if job.salary_min %}{{ format_salary(job.salary_min, job.currency) if format_salary is defined else ("£{:,}".format(job.salary_min|int)) }}{% else %}Salary N/A{% endif %}
+      <div class="detail-salary">
+        {% if job.salary_min %}
+          {{ format_salary(job.salary_min, job.currency, job) }}
+          {% if job.salary_max and job.salary_max != job.salary_min %}
+            – {{ format_salary(job.salary_max, job.currency, job) }}
+          {% endif %}
+        {% else %}
+          Salary not listed
+        {% endif %}
       </div>
     </div>
 
-    <div class="section-label">Required Skills</div>
+    <div class="section-label">Skills</div>
     <div class="job-skills" style="margin-bottom: 24px;">
       {% for skill in (job.skills or []) %}
-      <span class="skill-tag" style="font-size: 0.85rem; padding: 6px 14px;">{{ skill }}</span>
+      <span class="skill-tag">{{ skill }}</span>
       {% else %}
-      <span style="color: var(--muted); font-size: 0.9rem;">No specific skills listed.</span>
+      <span style="color: var(--muted); font-size: 0.9rem;">No specific skills extracted.</span>
       {% endfor %}
     </div>
 
     {% if job.description %}
-    <div class="section-label">Job Description</div>
-    <div style="color: var(--text); font-size: 0.95rem; line-height: 1.7; margin-bottom: 28px; white-space: pre-line;">
-      {{ job.description }}
-    </div>
+    <div class="section-label">Description</div>
+    <div class="detail-body">{{ job.description }}</div>
     {% endif %}
 
-    <div style="margin-top: 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-      {% if job.source_url %}
-      <a href="{{ job.source_url }}" target="_blank" class="btn-apply">
-        Apply on Original Site →
-      </a>
-      {% endif %}
-    </div>
+    {% if job.posted_date or job.scraped_at %}
+    <p style="color: var(--muted2); font-size: 0.8rem; margin-bottom: 20px;">
+      {% if job.posted_date %}Posted: {{ job.posted_date[:10] if job.posted_date|length > 10 else job.posted_date }}{% endif %}
+      {% if job.scraped_at %} · Scraped: {{ job.scraped_at[:10] }}{% endif %}
+    </p>
+    {% endif %}
+
+    {% if job.source_url %}
+    <a href="{{ job.source_url }}" target="_blank" rel="noopener" class="btn-apply">
+      Apply on original site →
+    </a>
+    {% endif %}
   </div>
 </div>
 
-<footer>Job Market Analytics Dashboard — Built with Flask, Pandas, Plotly &amp; Supabase</footer>
+<footer>Job Market Analytics — Flask, Pandas, Plotly &amp; Supabase</footer>
 
 <script>
-  // Dynamic Interactive Particle Engine
-  (function() {
-    const canvas = document.getElementById('hero-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-    let mouse = { x: width / 2, y: height / 2 };
-
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    });
-
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    });
-
-    class Particle {
-      constructor() {
-        this.reset();
-      }
-
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.radius = Math.random() * 2 + 1;
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
-        this.alpha = Math.random() * 0.5 + 0.3;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-
-        if (this.x < 0 || this.x > width) this.vx *= -1;
-        if (this.y < 0 || this.y > height) this.vy *= -1;
-
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 150) {
-          this.x -= (dx / dist) * 1.5;
-          this.y -= (dy / dist) * 1.5;
-        }
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = document.body.classList.contains('light')
-          ? `rgba(184, 148, 42, ${this.alpha})`
-          : `rgba(201, 168, 76, ${this.alpha})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(201, 168, 76, 0.5)';
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    const particles = Array.from({ length: 65 }, () => new Particle());
-
-    function animate() {
-      ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 140) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = document.body.classList.contains('light')
-              ? `rgba(184, 148, 42, ${0.2 * (1 - dist / 140)})`
-              : `rgba(201, 168, 76, ${0.25 * (1 - dist / 140)})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(animate);
-    }
-    animate();
-  })();
-
-  // Theme Toggling Logic
-  if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light');
-  }
-
-  function toggleTheme() {
-    document.body.classList.toggle('light');
-    localStorage.setItem('theme',
-      document.body.classList.contains('light') ? 'light' : 'dark'
-    );
-  }
+  (function(){ if (localStorage.getItem('theme') === 'light') document.body.classList.add('light'); })();(function(){ if(localStorage.getItem('theme')==='light') document.body.classList.add('light'); })();
+  function toggleTheme(){ var on = document.body.classList.toggle('light'); localStorage.setItem('theme', on ? 'light' : 'dark'); }
 </script>
 
 </body>
