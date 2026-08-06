@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Too many requests — Job Market Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-logo">JM<span>D</span></a>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/jobs">All Jobs</a>
+    <a href="/predict">Salary Predictor</a>
+  </div>
+</nav>
+<div class="container not-found">
+  <div class="not-found-inner">
+    <div class="not-found-code">429</div>
+    <h2>Too many requests</h2>
+    <p>You’ve hit the rate limit. Please wait a minute and try again.</p>
+    <a href="/" class="btn-apply">Return to dashboard →</a>
+  </div>
+</div>
+<footer>Job Market Analytics — Flask, Pandas, Plotly &amp; Supabase</footer>
+</body>
+</html>
